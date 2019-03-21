@@ -79,11 +79,11 @@ def poly_kernel(W, degree=2, p=2):
 	pdist = torch.norm(W[..., None, :] - W[..., None, :, :], p=p, dim=-1)
 	return 1 / (1 + pdist)**degree
 
-def rbf_kernel(W, sigmas=[1.], p=2):
+def rbf_kernel(W, sigmas=[1.], p=2, d=2):
 	pdist = torch.norm(W[..., None, :] - W[..., None, :, :], p=p, dim=-1)
 	res = torch.zeros_like(pdist)
 	for sigma in sigmas:
-		res += torch.exp(- pdist / (2 * sigma**2))
+		res += torch.exp(- pdist**d / (sigma**2))
 	return res / len(sigmas)
 
 def generic_kernel(X, Y, kernel_fn):
@@ -101,22 +101,54 @@ def mixture_divergence(mu, X, nu, Y, alpha, kernel):
 	K = kernel(X, Y)
 	
 	#v = (mu * (utils.min_clamp(v) **(alpha-1))).sum(dim=0, keepdim=True)
-	u = (2 * K[-m:, -m:] @ nuT) / utils.min_clamp(K[-m:, -m:] @ nuT + K[-m:, :n] @ muT)
-	v = (2 * K[:n, :n] @ muT) / utils.min_clamp(K[:n, :n] @ muT + K[:n, -m:] @ nuT)
+	u = (2 * K[:n, :n] @ muT) / utils.min_clamp(K[:n, :n] @ muT + K[:n, -m:] @ nuT)
+	v = (2 * K[-m:, -m:] @ nuT) / utils.min_clamp(K[-m:, -m:] @ nuT + K[-m:, :n] @ muT)
 		
 	if alpha == 1:
 		
+		u = -mu @ torch.log(utils.min_clamp(u))
 		v = -nu @ torch.log(utils.min_clamp(v))
-		u = -nu @ torch.log(utils.min_clamp(u))
 		
 		return (u + v) , K
 	
 	else:
         
-		v = mu @ (utils.min_clamp(v) **(alpha-1))
-		v = torch.log(utils.min_clamp(v))
-
-		u = nu @ (utils.min_clamp(u) **(alpha-1)) 
+		u = mu @ (utils.min_clamp(u) **(alpha-1))
 		u = torch.log(utils.min_clamp(u))
+
+		v = nu @ (utils.min_clamp(v) **(alpha-1)) 
+		v = torch.log(utils.min_clamp(v))
     
 		return (u + v) / (alpha - 1), K
+	
+
+def conv_divergence(mu, nu, alpha, kernel, Knu=None):
+
+	Kmu = kernel(mu)
+
+	if Knu is None:
+		Knu = kernel(nu)
+
+	Kr = (Kmu + Knu) / 2
+	u = Kmu / Kr
+	v = Knu / Kr
+
+	if alpha == 1:
+
+		u = torch.log(utils.min_clamp(u))
+		u = -(mu * u).sum(-1).sum(-1, keepdim=True)
+
+		v = torch.log(utils.min_clamp(v))
+		v = -(nu * v).sum(-1).sum(-1, keepdim=True)
+
+		return (u + v)
+
+	else:
+
+		u = (mu * u**(alpha-1)).sum(-1).sum(-1, keepdim=True)
+		u = torch.log(u)
+
+		v = (nu * v**(alpha-1)).sum(-1).sum(-1, keepdim=True)
+		v = torch.log(v)
+
+		return (u + v) / (alpha - 1)
