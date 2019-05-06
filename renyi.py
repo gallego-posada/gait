@@ -3,7 +3,7 @@ import torch
 import utils
 
 
-def sim_entropy(K, p, alpha=1):
+def sim_entropy(K, p, alpha=1, normalize=False):
 	"""
 	Compute similarity sensitive Renyi entropy of a (batch of) distribution(s) p
 	over an alphabet of n elements.
@@ -19,6 +19,9 @@ def sim_entropy(K, p, alpha=1):
 	p = p.transpose(0, 1)
 	Kp = K @ p
 	
+	if normalize:
+		Kp = Kp / torch.norm(Kp, p=1, dim=0, keepdim=True)
+	
 	if alpha == 1:
 		res = -(p * torch.log(utils.min_clamp(Kp))).sum(dim=0, keepdim=True)
 	else:
@@ -28,7 +31,42 @@ def sim_entropy(K, p, alpha=1):
 		res = v
 	
 	return res.transpose(0, 1)
+
+
+def sim_cross_entropy(K, p, q, alpha=1, normalize=False):
+	"""
+	Compute similarity sensitive Renyi cross entropy of a (batch of) distribution(s) q
+	with respect to a (batch of) distribution(s) pover an alphabet of n elements.
 	
+	Inputs:
+		K [n x n tensor] : Positive semi-definite similarity matrix
+		p [batch_size x n tensor] : Probability distributions over n elements
+		q [batch_size x n tensor] : Probability distributions over n elements
+		alpha [float] : Divergence order
+	
+	Output:
+		[batch_size x 1 tensor] i-th entry is cross entropy of i-th row of q w.r.t i-th row of p 
+    """
+	p = p.transpose(0, 1)
+	q = q.transpose(0, 1)
+	Kq = K @ q
+	
+	#print(Kq)
+	
+	if normalize:
+		Kq = Kq / torch.norm(Kq, p=1, dim=0, keepdim=True)
+	#print(Kq)
+	
+	if alpha == 1:
+		res = -(p * torch.log(utils.min_clamp(Kq))).sum(dim=0, keepdim=True)
+	else:
+		Kqa = utils.min_clamp(Kq) ** (alpha - 1)
+		v = (p * Kqa).sum(dim=0, keepdim=True) 
+		v = torch.log(utils.min_clamp(v)) / (1 - alpha)
+		res = v
+	
+	return res.transpose(0, 1)
+
 def sim_divergence(K, p, q, alpha=1):    
 	"""
 	Compute similarity sensitive Jensen-Renyi divergence of between a pair of (batches of)
