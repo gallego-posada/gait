@@ -1,6 +1,13 @@
 import numpy as np
 import torch
-EPS = 1e-10
+EPS = 1e-20
+
+
+def batch_pdist(X, Y, p=2):
+    return torch.norm(X[..., None, :] - Y[..., None, :, :], p=2, dim=-1)
+
+def clamp_log(x, c=EPS):
+	return torch.log(c + x)
 
 def min_clamp(x, c=EPS):
 	return torch.clamp_min(x, c)
