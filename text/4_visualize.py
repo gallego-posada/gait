@@ -7,7 +7,6 @@ import numpy as np
 if __name__ == '__main__':
     with open('data/news_words', 'rb') as f:
         words = pickle.load(f)
-    np_words = np.array(words)
     with open('data/tfidf', 'rb') as f:
         X = pickle.load(f)
 
