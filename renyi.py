@@ -108,7 +108,7 @@ def sim_divergence(K, p, q, alpha=2, use_avg=False):
         return 1/(alpha - 1) * (torch.log(dp1) + torch.log(dp2))
 
     
-def mink_sim_divergence(K, p, q, alpha=2, use_avg=False):
+def mink_sim_divergence(K, p, q, alpha=2, use_inv=False):
     """
     Compute similarity sensitive Minkowski divergence of between a pair of (batches of)
     distribution(s) p and q over an alphabet of n elements.
@@ -124,12 +124,17 @@ def mink_sim_divergence(K, p, q, alpha=2, use_avg=False):
     """
 
     tK = K.transpose(0, 1)
-    ipK = 1 / (p @ tK)
-    iqK = 1 / (q @ tK)
     
-    diff = torch.abs(ipK - iqK) ** alpha
+    pK = p @ tK
+    qK = q @ tK
     
+    if use_inv:
+        pK = 1 / pK
+        qK = 1 / qK
+        
+    diff = torch.abs(pK - qK) ** alpha
     div =  (p * diff).sum(dim=1) ** (1 / alpha)
+    
     return div
     
     
