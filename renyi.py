@@ -107,6 +107,34 @@ def sim_divergence(K, p, q, alpha=2, use_avg=False):
 
         return 1/(alpha - 1) * (torch.log(dp1) + torch.log(dp2))
 
+    
+def mink_sim_divergence(K, p, q, alpha=2, use_avg=False):
+    """
+    Compute similarity sensitive Minkowski divergence of between a pair of (batches of)
+    distribution(s) p and q over an alphabet of n elements.
+
+    Inputs:
+        K [n x n tensor] : Positive semi-definite similarity matrix
+        p [batch_size x n tensor] : Probability distributions over n elements
+        q [batch_size x n tensor] : Probability distributions over n elements
+        alpha [float] : Divergence order
+    
+    Output:
+        div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q 
+    """
+
+    tK = K.transpose(0, 1)
+    ipK = 1 / (p @ tK)
+    iqK = 1 / (q @ tK)
+    
+    diff = torch.abs(ipK - iqK) ** alpha
+    
+    div =  (p * diff).sum(dim=1) ** (1 / alpha)
+    return div
+    
+    
+    
+    
 def mixture_divergence(mu, X, nu, Y, alpha, kernel, use_avg=False):
     """
     Compute similarity sensitive divergence of between a pair of empirical distributions
@@ -142,8 +170,6 @@ def mixture_divergence(mu, X, nu, Y, alpha, kernel, use_avg=False):
     else:
         rat1 = Kxx_mu / utils.min_clamp(Kxy_nu)
         rat2 = Kyy_nu / utils.min_clamp(Kyx_mu)
-    
-    lg_fn = 
     
     if alpha == 1:
         div = (mu @ torch.log(rat1)) + (nu @ torch.log(rat2))
