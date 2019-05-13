@@ -1,5 +1,7 @@
 import collections
 
+import torch
+
 from pylego import misc
 
 from models.basefixed import BaseFixed
@@ -12,8 +14,9 @@ class FixedRunner(MNISTBaseRunner):
         super().__init__(flags, BaseFixed, ['loss'])
 
     def run_batch(self, batch, train=False):
-        x = self.model.prepare_batch(batch[0])
-        loss = self.model.run_loss(x, labels=x)
+        z = torch.rand(self.batch_size, self.flags.z_size)
+        z, x = self.model.prepare_batch([z, batch[0]])
+        loss = self.model.run_loss(z, labels=x)
         if train:
             self.model.train(loss, clip_grad_norm=self.flags.grad_norm)
 
@@ -23,14 +26,18 @@ class FixedRunner(MNISTBaseRunner):
         if split == 'train':
             return
         print('* Visualizing', split)
-        batch = next(self.reader.iter_batches(split, 16 * 8, shuffle=True, partial_batching=True, threads=self.threads,
-                                              max_batches=1))
-        x = self.model.prepare_batch(batch[0])
-        x_recon = self.model.run_batch([x])[0].view_as(x).detach().cpu().numpy()
-        x = x.cpu().numpy()
+        Z = torch.linspace(0.0, 1.0, steps=20)
+        Z = torch.cartesian_prod(Z, Z).view(20, 20, 2)
+        x_gens = []
+        for row in range(20):
+            z = self.model.prepare_batch(Z[row])
+            x_gen = self.model.run_batch([z]).view(20, 1, 28, 28).detach().cpu()
+            x_gens.append(x_gen)
+
+        x_full = torch.cat(x_gens, dim=0).numpy()
         if split == 'test':
             fname = self.flags.log_dir + '/test.png'
         else:
             fname = self.flags.log_dir + '/val%03d.png' % epoch
-        misc.save_comparison_grid(fname, x, x_recon, border_shade=1.0)
+        misc.save_comparison_grid(fname, x_full, border_width=0, retain_sequence=True)
         print('* Visualizations saved to', fname)
