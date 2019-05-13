@@ -9,18 +9,15 @@ from .basemnist import MNISTBaseRunner
 class FixedRunner(MNISTBaseRunner):
 
     def __init__(self, flags, *args, **kwargs):
-        super().__init__(flags, BaseFixed, ['loss', 'bce_diff', 'kld', 'bce_optimal'])
+        super().__init__(flags, BaseFixed, ['loss'])
 
     def run_batch(self, batch, train=False):
         x = self.model.prepare_batch(batch[0])
-        loss, bce_diff, kld, bce_optimal = self.model.run_loss(x, labels=x)
+        loss = self.model.run_loss(x, labels=x)
         if train:
             self.model.train(loss, clip_grad_norm=self.flags.grad_norm)
 
-        return collections.OrderedDict([('loss', loss.item()),
-                                        ('bce_diff', bce_diff.item()),
-                                        ('kld', kld.item()),
-                                        ('bce_optimal', bce_optimal.item())])
+        return collections.OrderedDict([('loss', loss.item())])
 
     def post_epoch_visualize(self, epoch, split):
         if split == 'train':
