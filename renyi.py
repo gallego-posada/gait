@@ -212,9 +212,9 @@ def mixture_divergence(mu, X, nu, Y, alpha, kernel, use_avg=False):
         rat2 = Kyy_nu / utils.min_clamp(Kyx_mu)
     
     if alpha == 1:
-        div = (mu @ torch.log(rat1)) + (nu @ torch.log(rat2))
+        div = (mu @ utils.clamp_log(rat1)) + (nu @ utils.clamp_log(rat2))
     else:
-        div = (1/(alpha - 1)) * ( torch.log(mu @ rat1**(alpha-1)) + torch.log(nu @ rat2**(alpha-1)))
+        div = (1/(alpha - 1)) * ( utils.clamp_log(mu @ rat1**(alpha-1)) + utils.clamp_log(nu @ rat2**(alpha-1)))
         
     return div, K
     
