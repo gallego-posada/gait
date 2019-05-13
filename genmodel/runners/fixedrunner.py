@@ -30,7 +30,11 @@ class FixedRunner(MNISTBaseRunner):
         Z = torch.cartesian_prod(Z, Z).view(20, 20, 2)
         x_gens = []
         for row in range(20):
-            z = self.model.prepare_batch(Z[row])
+            if self.flags.z_size == 2:
+                z = Z[row]
+            else:
+                z = torch.rand(20, self.flags.z_size)
+            z = self.model.prepare_batch(z)
             x_gen = self.model.run_batch([z]).view(20, 1, 28, 28).detach().cpu()
             x_gens.append(x_gen)
 
