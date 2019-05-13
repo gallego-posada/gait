@@ -1,8 +1,16 @@
+import sys
+
 import torch
 from torch import nn
 from torch.nn import functional as F
 
 from ..basefixed import BaseFixed
+
+sys.path.append('..')
+import renyi
+
+
+gaussian_kernel = lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.rbf_kernel(u, v))
 
 
 class Decoder(nn.Module):
@@ -10,13 +18,11 @@ class Decoder(nn.Module):
     def __init__(self, z_size, hidden_size, output_size):
         super().__init__()
         self.fc1 = nn.Linear(z_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, output_size)
+        self.fc2 = nn.Linear(hidden_size, output_size)
 
     def forward(self, z):
         t = F.elu(self.fc1(z))
-        t = F.elu(self.fc2(t))
-        return torch.sigmoid(self.fc3(t))
+        return torch.sigmoid(self.fc2(t))
 
 
 class Fixed(nn.Module):
@@ -34,9 +40,10 @@ class FixedModel(BaseFixed):
 
     def __init__(self, flags, *args, **kwargs):
         super().__init__(Fixed(28 * 28, flags.h_size, flags.z_size), flags, *args, **kwargs)
+        uniform = torch.ones(1, flags.batch_size, device=self.device)
+        self.uniform = uniform / uniform.sum()
 
     def loss_function(self, forward_ret, labels=None):
         x_gen = forward_ret
         x = labels.view_as(x_gen)
-
-        return F.binary_cross_entropy(x_gen, x, reduction='sum') / x.size(0)
+        return renyi.mink_mixture_divergence(self.uniform, x, self.uniform, x_gen, gaussian_kernel, 2)
