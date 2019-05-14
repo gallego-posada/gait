@@ -53,11 +53,13 @@ class FixedModel(BaseFixed):
         super().__init__(model, flags, optimizer=optimizer, *args, **kwargs)
         uniform = torch.ones(1, flags.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
-        self.alpha_decay = LinearDecay(0, flags.alpha_decay_steps, flags.alpha_initial, flags.alpha)
+        self.alpha_decay = LinearDecay(flags.alpha_decay_start, flags.alpha_decay_end, flags.alpha_initial, flags.alpha)
+        self.kernel = gaussian_kernel(self.flags.kernel_sigma)
 
     def loss_function(self, forward_ret, labels=None):
         x_gen = forward_ret
         x = labels.view_as(x_gen)
         alpha = self.alpha_decay.get_y(self.get_train_steps())
-        return renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, x_gen,
-                                              gaussian_kernel(self.flags.kernel_sigma), alpha)
+        Dyx = renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, x_gen, self.kernel, alpha)
+        Dxx = renyi.renyi_mixture_divergence(self.uniform, x_gen, self.uniform, x_gen, self.kernel, alpha)
+        return (2 * Dyx) - Dxx
