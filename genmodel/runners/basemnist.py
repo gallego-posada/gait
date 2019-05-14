@@ -16,9 +16,9 @@ class MNISTBaseRunner(runner.Runner):
                          threads=flags.threads, print_every=flags.print_every, visualize_every=flags.visualize_every,
                          max_batches=flags.max_batches, *args, **kwargs)
         model_class = misc.get_subclass(importlib.import_module('models.' + self.flags.model), model_class)
-        self.model = model_class(self.flags, optimizer=flags.optimizer, learning_rate=flags.learning_rate,
-                                 cuda=flags.cuda, load_file=flags.load_file, save_every=flags.save_every,
-                                 save_file=flags.save_file, debug=flags.debug)
+        self.model = model_class(self.flags, learning_rate=flags.learning_rate, cuda=flags.cuda,
+                                 load_file=flags.load_file, save_every=flags.save_every, save_file=flags.save_file,
+                                 debug=flags.debug)
 
     def run_epoch(self, epoch, split, train=False, log=True):
         """Iterates the epoch data for a specific split."""
