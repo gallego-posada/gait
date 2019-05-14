@@ -230,11 +230,10 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False):
         rat1 = Kyy_p / utils.min_clamp(Kyx_q)
         rat2 = Kxx_q / utils.min_clamp(Kxy_p)
     
-    
     if alpha == 1:
-        div = (p * utils.clamp_log(rat1)).sum(dim=-1) + (p @ utils.clamp_log(rat2)).sum(dim=-1)
+        div = (p * utils.clamp_log(rat1)).sum(dim=-1) + (q * utils.clamp_log(rat2)).sum(dim=-1)
     else:
-        div = (1/(alpha - 1)) * ( utils.clamp_log((p * rat1**(alpha-1)).sum(dim=-1)) + utils.clamp_log((q * rat2**(alpha-1)).sum(dim=-1)))
+        div = (1/(alpha - 1)) * ( torch.log((p * rat1**(alpha-1)).sum(dim=-1)) + torch.log((q * rat2**(alpha-1)).sum(dim=-1)))
         
     return div
     
