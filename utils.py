@@ -14,7 +14,7 @@ def clamp_log(x, c=EPS):
 	return torch.log(c + x)
 
 def min_clamp(x, c=EPS):
-	return torch.clamp_min(x, c)
+	return c + x
 
 def from_numpy(x, requires_grad=False):
 	x = torch.from_numpy(x)
