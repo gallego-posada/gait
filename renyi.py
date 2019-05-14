@@ -224,20 +224,22 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False):
     Kyx_q = q @ Kyx.transpose(0, 1)
     
     if use_avg:
-        rat1 = 2 * Kyy_p / utils.min_clamp(Kyy_p + Kyx_q)
-        rat2 = 2 * Kxx_q / utils.min_clamp(Kxx_q + Kxy_p)
+        rat1 = (2 * Kyy_p, Kyy_p + Kyx_q)
+        rat2 = (2 * Kxx_q, Kxx_q + Kxy_p)
     else:
-        rat1 = Kyy_p / utils.min_clamp(Kyx_q)
-        rat2 = Kxx_q / utils.min_clamp(Kxy_p)
-    
+        rat1 = (Kyy_p, Kyx_q)
+        rat2 = (Kxx_q, Kxy_p)
+
     if alpha == 1:
-        div = (p * utils.clamp_log(rat1)).sum(dim=-1) + (q * utils.clamp_log(rat2)).sum(dim=-1)
+        div = (p * (utils.clamp_log(rat1[0]) - utils.clamp_log(rat1[1]))).sum(dim=-1) + \
+            (q * (utils.clamp_log(rat2[0]) - utils.clamp_log(rat2[1]))).sum(dim=-1)
     else:
-        div = (1/(alpha - 1)) * ( torch.log((p * rat1**(alpha-1)).sum(dim=-1)) + torch.log((q * rat2**(alpha-1)).sum(dim=-1)))
-        
+        power_pq = utils.clamp_log(p) + (alpha - 1) * (utils.clamp_log(rat1[0]) - utils.clamp_log(rat1[1]))
+        power_qp = utils.clamp_log(q) + (alpha - 1) * (utils.clamp_log(rat2[0]) - utils.clamp_log(rat2[1]))
+        div = (1 / (alpha - 1)) * (torch.logsumexp(power_pq, 1) + torch.logsumexp(power_qp, 1))
+
     return div
-    
-    
+
 
 def cosine_similarity(X, Y):
     return utils.batch_cosine_similarity(X, Y)
