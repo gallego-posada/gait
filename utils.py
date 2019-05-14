@@ -1,6 +1,7 @@
 import numpy as np
 import torch
-EPS = 1e-20
+from skimage.transform import resize
+EPS = 1e-50
 
 
 def batch_pdist(X, Y, p=2):
@@ -28,6 +29,19 @@ def draw_circle(img_size):
 
 def radians(angle):
 	return angle * np.pi / 180.
+
+
+def sample_and_resize(D, img_size, num_samples=1):
+    res = []
+    for _ in range(num_samples):
+        ix = int(np.random.choice(len(D), 1))
+        sample_img = D[ix, ...].data.numpy()
+        #sample_img = tform(sample_img)[0, ...].data.numpy()
+        if img_size != 28:
+            sample_img = resize(sample_img, (img_size, img_size), mode='constant')
+        sample_img = np.abs(sample_img) / np.abs(sample_img).sum()
+        res.append(sample_img)
+    return torch.tensor(res).double()
 
 def convolve(img, filt):
     #kwidth = 27
