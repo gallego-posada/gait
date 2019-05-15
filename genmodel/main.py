@@ -21,7 +21,7 @@ if __name__ == '__main__':
     arg(parser, 'beta1', type=float, default=0.9, help='Adam beta1')
     arg(parser, 'beta2', type=float, default=0.999, help='Adam beta2')
     arg(parser, 'grad_norm', type=float, default=5.0, help='gradient norm clipping (-1 to disable)')
-    arg(parser, 'batch_size', type=int, default=128, help='batch size')
+    arg(parser, 'batch_size', type=int, default=64, help='batch size')
     arg(parser, 'epochs', type=int, default=50000, help='no. of training epochs')
     arg(parser, 'h_size', type=int, default=256, help='hidden state dims')
     arg(parser, 'z_size', type=int, default=2, help='latent dims per layer')

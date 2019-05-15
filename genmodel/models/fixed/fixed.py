@@ -2,7 +2,6 @@ import sys
 
 import torch
 from torch import nn, optim
-from torch.nn import functional as F
 
 from pylego.misc import LinearDecay
 from pylego import ops
@@ -59,8 +58,7 @@ class FixedModel(BaseFixed):
         model = Fixed(28 * 28, flags.h_size, flags.z_size)
         optimizer = optim.Adam(model.parameters(), lr=flags.learning_rate, betas=(flags.beta1, flags.beta2))
         super().__init__(model, flags, optimizer=optimizer, *args, **kwargs)
-        self.batch_size = flags.batch_size // 2
-        uniform = torch.ones(1, self.batch_size, device=self.device)
+        uniform = torch.ones(1, flags.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
         self.alpha_decay = LinearDecay(flags.alpha_decay_start, flags.alpha_decay_end, flags.alpha_initial, flags.alpha)
         self.kernel = gaussian_kernel(self.flags.kernel_sigma)
@@ -69,8 +67,4 @@ class FixedModel(BaseFixed):
         x_gen = forward_ret
         x = labels.view_as(x_gen)
         alpha = self.alpha_decay.get_y(self.get_train_steps())
-        Dyx = renyi.renyi_mixture_divergence(self.uniform, x[:self.batch_size], self.uniform, x_gen[:self.batch_size],
-                                             self.kernel, alpha)
-        Dyy = renyi.renyi_mixture_divergence(self.uniform, x_gen[:self.batch_size], self.uniform,
-                                             x_gen[self.batch_size:], self.kernel, alpha)
-        return (2 * Dyx) - Dyy
+        return renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, x_gen, self.kernel, alpha)
