@@ -10,6 +10,7 @@ import torch
 from torch import nn, optim
 from torch.nn import functional as F
 from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 
 from renyi import mink_sim_divergence, renyi_sim_entropy, renyi_sim_divergence
 import utils
@@ -45,17 +46,20 @@ def print_summary(words, probs, embs):
     while step < 10000 and not converged:
         q = F.softmax(q_logits, dim=1)
         # div = mink_sim_divergence(K, p, q, use_inv=False) + 0.005*renyi_sim_entropy(K, q) #0.005*torch.sum(q * utils.clamp_log(q))
-        div = renyi_sim_divergence(K, p, q) + min(step/5000., 1.) * torch.sum(torch.sigmoid((q_logits - torch.mean(q_logits))))
+        div = renyi_sim_divergence(K, p, q) + max(min(step/5000. - .5, 1.), 0) *\
+              torch.sum(torch.sigmoid((q_logits - torch.mean(q_logits))))
         # div = renyi_sim_divergence(K, p, q) - min(step / 5000., 3.) * torch.clamp(torch.sum(q*utils.clamp_log(q)), 3)
         div_item = div.item()
         if step % 100 == 0:
             print('Step %d: %0.4f' % (step, div_item))
             inp = sorted(list(zip(q[0], words)), reverse=True)
             print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
+            # inp = sorted([i.item() for i in q_logits[0]], reverse=True)
+            # print(inp)
         recent.append(div_item)
         div.backward()
         q_optimizer.step()
-        if np.array(recent).mean() < 0.0001 and step > 100:
+        if np.array(recent).mean() < 0.0001:
             converged = True
         step += 1
     q = q[0]
@@ -72,22 +76,21 @@ def print_summary(words, probs, embs):
 
 def wordcloud(probs, words, name, thresh=0.01):
     frequencies = {w.upper():p.item() for w, p in zip(words, probs) if p>thresh}
-    cloud = WordCloud(background_color="white", colormap="tab20").generate_from_frequencies(frequencies)
+    cloud = WordCloud(max_font_size=40, background_color="white", colormap="tab20").generate_from_frequencies(frequencies)
 
-    import matplotlib.pyplot as plt
     plt.clf()
     plt.imshow(cloud, interpolation='bilinear')
     plt.axis("off")
     plt.savefig(name+".pdf")
-
-    # lower max_font_size
-    plt.clf()
-    cloud = WordCloud(background_color="white", max_font_size=40, colormap="tab20").generate_from_frequencies(frequencies)
-    plt.figure()
-    plt.imshow(cloud, interpolation="bilinear")
-    plt.axis("off")
-    plt.show()
-    plt.savefig(name+"_small.pdf")
+    #
+    # # lower max_font_size
+    # plt.clf()
+    # cloud = WordCloud(background_color="white", max_font_size=40, colormap="tab20").generate_from_frequencies(frequencies)
+    # plt.figure()
+    # plt.imshow(cloud, interpolation="bilinear")
+    # plt.axis("off")
+    # plt.show()
+    # plt.savefig(name+"_small.pdf")
 
 
 if __name__ == '__main__':
@@ -119,7 +122,7 @@ if __name__ == '__main__':
 
         Kq, Kp, q = print_summary(words, probs, embs)
 
-        wordcloud(Kq, words, "figs/{}_Kq".format(i))
+        # wordcloud(Kq, words, "figs/{}_Kq".format(i))
         wordcloud(q, words, "figs/{}_q".format(i))
 
         bar_indices = sorted(list(zip(Kp, range(len(feature_index)))), reverse=True)
