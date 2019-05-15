@@ -3,7 +3,10 @@ import pickle
 
 import bs4
 from nltk.tokenize import word_tokenize, sent_tokenize
-
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+stopwords = set(stopwords.words('english'))
+wnl = WordNetLemmatizer()
 
 if __name__ == '__main__':
     with open('data/words', 'rb') as f:
@@ -11,11 +14,11 @@ if __name__ == '__main__':
 
     local_words = set()
     for article_fname in sorted(glob.glob('data/English/*.txt')):
-        print(article_fname)
         with open(article_fname, 'r') as f:
             text = bs4.BeautifulSoup(f.read(), 'html5lib').text
 
         tokens = [w for s in sent_tokenize(text) for w in word_tokenize(s)]
+        tokens = [wnl.lemmatize(w.lower()) for w in tokens if w not in stopwords]
         proc_tokens = []
         for token in tokens:
             if any(c.isalpha() for c in token):
