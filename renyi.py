@@ -178,7 +178,7 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
         rat1 = (pK, qK)
         rat2 = (qK, pK)
 
-    if callable(K):
+    if callable(K):  # we're dealing with an image
         sum_dims = (-2, -1)
     else:
         sum_dims = -1
