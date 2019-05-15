@@ -20,11 +20,11 @@ def renyi_sim_entropy(K, p, alpha=1):
     
     
     if alpha == 1:
-        ent = -(p * utils.clamp_log(pK)).sum(dim=-1)
+        ent = -(p * utils.clamp_log_prob(pK)).sum(dim=-1)
     else:
         Kpa = pK ** (alpha - 1)
         v = (p * Kpa).sum(dim=-1, keepdim=True) 
-        ent = utils.clamp_log(v) / (1 - alpha)
+        ent = utils.clamp_log_prob(v) / (1 - alpha)
     
     return ent
 
@@ -184,12 +184,14 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
         sum_dims = -1
 
     if np.allclose(alpha, 1.0):            
-        dp1 = (p * (utils.clamp_log(rat1[0]) - utils.clamp_log(rat1[1]))).sum(sum_dims)
-        dp2 = (q * (utils.clamp_log(rat2[0]) - utils.clamp_log(rat2[1]))).sum(sum_dims)
+        dp1 = (p * (utils.clamp_log_prob(rat1[0]) - utils.clamp_log_prob(rat1[1]))).sum(sum_dims)
+        dp2 = (q * (utils.clamp_log_prob(rat2[0]) - utils.clamp_log_prob(rat2[1]))).sum(sum_dims)
         return dp1 + dp2
     else:
-        power_pq = utils.clamp_log(p) + (alpha - 1) * (utils.clamp_log(rat1[0]) - utils.clamp_log(rat1[1]))
-        power_qp = utils.clamp_log(q) + (alpha - 1) * (utils.clamp_log(rat2[0]) - utils.clamp_log(rat2[1]))
+        power_pq = utils.clamp_log_prob(p) + (alpha - 1) * (utils.clamp_log_prob(rat1[0]) -
+                                                            utils.clamp_log_prob(rat1[1]))
+        power_qp = utils.clamp_log_prob(q) + (alpha - 1) * (utils.clamp_log_prob(rat2[0]) -
+                                                            utils.clamp_log_prob(rat2[1]))
         return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
 
 
@@ -227,11 +229,13 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False):
         rat2 = (Kxx_q, Kxy_p)
 
     if alpha == 1:
-        div = (p * (utils.clamp_log(rat1[0]) - utils.clamp_log(rat1[1]))).sum(dim=-1) + \
-            (q * (utils.clamp_log(rat2[0]) - utils.clamp_log(rat2[1]))).sum(dim=-1)
+        div = (p * (utils.clamp_log_prob(rat1[0]) - utils.clamp_log_prob(rat1[1]))).sum(dim=-1) + \
+            (q * (utils.clamp_log_prob(rat2[0]) - utils.clamp_log_prob(rat2[1]))).sum(dim=-1)
     else:
-        power_pq = utils.clamp_log(p) + (alpha - 1) * (utils.clamp_log(rat1[0]) - utils.clamp_log(rat1[1]))
-        power_qp = utils.clamp_log(q) + (alpha - 1) * (utils.clamp_log(rat2[0]) - utils.clamp_log(rat2[1]))
+        power_pq = utils.clamp_log_prob(p) + (alpha - 1) * (utils.clamp_log_prob(rat1[0]) -
+                                                            utils.clamp_log_prob(rat1[1]))
+        power_qp = utils.clamp_log_prob(q) + (alpha - 1) * (utils.clamp_log_prob(rat2[0]) -
+                                                            utils.clamp_log_prob(rat2[1]))
         div = (1 / (alpha - 1)) * (torch.logsumexp(power_pq, 1) + torch.logsumexp(power_qp, 1))
 
     return div
