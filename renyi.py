@@ -172,30 +172,26 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
             rK = K(r)
         else:
             rK = r @ K
-        rat1 = pK / utils.min_clamp(rK)
-        rat2 = qK / utils.min_clamp(rK)
+        rat1 = (pK, rK)
+        rat2 = (qK, rK)
     else:
-        rat1 = pK / utils.min_clamp(qK)
-        rat2 = qK / utils.min_clamp(pK)
-    
-    
+        rat1 = (pK, qK)
+        rat2 = (qK, pK)
+
+    if callable(K):
+        sum_dims = (-2, -1)
+    else:
+        sum_dims = -1
+
     if np.allclose(alpha, 1.0):            
-        dp1 = (p * utils.clamp_log(rat1)).sum(dim=1)
-        dp2 = (q * utils.clamp_log(rat2)).sum(dim=1)
-        
-        if callable(K):
-            dp1, dp2 =  dp1.sum(dim=-1), dp1.sum(dim=-1)
-        
+        dp1 = (p * (utils.clamp_log(rat1[0]) - utils.clamp_log(rat1[1]))).sum(sum_dims)
+        dp2 = (q * (utils.clamp_log(rat2[0]) - utils.clamp_log(rat2[1]))).sum(sum_dims)
         return dp1 + dp2
-    else:    
-        dp1 = (p * rat1**(alpha-1)).sum(dim=1)
-        dp2 = 1*(q * rat2**(alpha-1)).sum(dim=1)
-        
-        if callable(K):
-            dp1, dp2 =  dp1.sum(dim=-1), dp1.sum(dim=-1)
-            
-        return 1/(alpha - 1) * (utils.clamp_log(dp1) + utils.clamp_log(dp2))
-    
+    else:
+        power_pq = utils.clamp_log(p) + (alpha - 1) * (utils.clamp_log(rat1[0]) - utils.clamp_log(rat1[1]))
+        power_qp = utils.clamp_log(q) + (alpha - 1) * (utils.clamp_log(rat2[0]) - utils.clamp_log(rat2[1]))
+        return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
+
 
 def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False):
     """
