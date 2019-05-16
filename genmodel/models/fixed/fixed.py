@@ -18,24 +18,26 @@ def gaussian_kernel(sigma):
 
 class Decoder(nn.Module):
 
-    def __init__(self, z_size, hidden_size, output_size):
+    def __init__(self, z_size, hidden_size, output_size, resnet=False):
         super().__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(z_size, hidden_size),
-            nn.BatchNorm1d(hidden_size),
-            nn.LeakyReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.BatchNorm1d(hidden_size),
-            nn.LeakyReLU(),
-            nn.Linear(hidden_size, output_size)
-        )
-        # self.fc = nn.Sequential(
-        #     nn.Linear(z_size, z_size * 7 * 7),
-        #     ops.View(-1, z_size, 7, 7),
-        #     ops.ResNet(z_size, [(2, 128, 1), (2, 64, -2), (2, 32, -2), (1, 1, 1)], norm=nn.BatchNorm2d,
-        #                skip_last_norm=True),
-        #     ops.View(-1, 28 * 28)
-        # )
+        if not resnet:
+            self.fc = nn.Sequential(
+                nn.Linear(z_size, hidden_size),
+                nn.BatchNorm1d(hidden_size),
+                nn.LeakyReLU(),
+                nn.Linear(hidden_size, hidden_size),
+                nn.BatchNorm1d(hidden_size),
+                nn.LeakyReLU(),
+                nn.Linear(hidden_size, output_size)
+            )
+        else:
+            self.fc = nn.Sequential(
+                nn.Linear(z_size, z_size * 7 * 7),
+                ops.View(-1, z_size, 7, 7),
+                ops.ResNet(z_size, [(2, 128, 1), (2, 64, -2), (2, 32, -2), (1, 1, 1)], norm=nn.BatchNorm2d,
+                           skip_last_norm=True),
+                ops.View(-1, 28 * 28)
+            )
 
     def forward(self, z):
         return torch.sigmoid(self.fc(z))
@@ -43,10 +45,10 @@ class Decoder(nn.Module):
 
 class Fixed(nn.Module):
 
-    def __init__(self, x_size, h_size, z_size):
+    def __init__(self, x_size, h_size, z_size, resnet=False):
         super().__init__()
         self.z_size = z_size
-        self.x_z = Decoder(z_size, h_size, x_size)
+        self.x_z = Decoder(z_size, h_size, x_size, resnet=resnet)
 
     def forward(self, z):
         return self.x_z((z * 2.0) - 1.0)
@@ -55,10 +57,14 @@ class Fixed(nn.Module):
 class FixedModel(BaseFixed):
 
     def __init__(self, flags, *args, **kwargs):
-        model = Fixed(28 * 28, flags.h_size, flags.z_size)
+        model = Fixed(28 * 28, flags.h_size, flags.z_size, resnet=flags.resnet)
         optimizer = optim.Adam(model.parameters(), lr=flags.learning_rate, betas=(flags.beta1, flags.beta2))
         super().__init__(model, flags, optimizer=optimizer, *args, **kwargs)
-        uniform = torch.ones(1, flags.batch_size, device=self.device)
+        if flags.unbiased > 0:
+            self.batch_size = flags.batch_size // 2
+        else:
+            self.batch_size = flags.batch_size
+        uniform = torch.ones(1, self.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
         self.alpha_decay = LinearDecay(flags.alpha_decay_start, flags.alpha_decay_end, flags.alpha_initial, flags.alpha)
         self.kernel = gaussian_kernel(self.flags.kernel_sigma)
@@ -67,4 +73,16 @@ class FixedModel(BaseFixed):
         x_gen = forward_ret
         x = labels.view_as(x_gen)
         alpha = self.alpha_decay.get_y(self.get_train_steps())
-        return renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, x_gen, self.kernel, alpha)
+        D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel, alpha,
+                                                        use_avg=self.flags.use_avg)
+        if self.flags.unbiased == 0:
+            return D(x, x_gen)
+        else:
+            x_prime = x[:self.batch_size]
+            x = x[self.batch_size:]
+            y_prime = x_gen[:self.batch_size]
+            y = x_gen[self.batch_size:]
+            if self.flags.unbiased == 1:
+                return 2 * D(x, y) - D(y, y_prime)
+            else:
+                return D(x, y) + D(x, y_prime) + D(x_prime, y) + D(x_prime, y_prime) - 2 * D(y, y_prime)
