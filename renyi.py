@@ -228,7 +228,7 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False):
         rat1 = (Kyy_p, Kyx_q)
         rat2 = (Kxx_q, Kxy_p)
 
-    if alpha == 1:
+    if np.allclose(alpha, 1.0):
         div = (p * (utils.clamp_log_prob(rat1[0]) - utils.clamp_log_prob(rat1[1]))).sum(dim=-1) + \
             (q * (utils.clamp_log_prob(rat2[0]) - utils.clamp_log_prob(rat2[1]))).sum(dim=-1)
     else:
