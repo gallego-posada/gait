@@ -3,6 +3,10 @@ import torch
 from torch.nn import functional as F
 from skimage.transform import resize
 
+EPS = {}
+for dtype in [torch.float16, torch.float32, torch.float64]:
+    EPS[dtype] = torch.finfo(dtype).eps * 2
+
 
 def batch_pdist(X, Y, p=2):
     return torch.norm(X[..., None, :] - Y[..., None, :, :], p=2, dim=-1)
@@ -12,12 +16,12 @@ def batch_cosine_similarity(X, Y, p=2):
 
 def min_clamp_prob(x, c=None):
     if c is None:
-        c = torch.finfo(x.dtype).tiny * 2
+        c = EPS[x.dtype]
     return c + (x * (1 - c))
 
 def min_clamp(x, c=None):
     if c is None:
-        c = torch.finfo(x.dtype).tiny * 2
+        c = EPS[x.dtype]
     return c + x
 
 def clamp_log_prob(x, c=None):
