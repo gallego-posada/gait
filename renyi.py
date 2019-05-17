@@ -195,7 +195,7 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
         return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
 
 
-def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False):
+def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=False, symmetric=True):
     """
     Compute similarity sensitive Renyi divergence of between a pair of empirical distributions
     p and q with supports Y and X, respectively
@@ -204,9 +204,11 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False):
         Y [n x d tensor] : Locations of the atoms of the measure p
         q [1 x m tensor] : Probability distribution over m elements
         X [n x d tensor] : Locations of the atoms of the measure q
-        alpha [float] : Divergence order
         kernel [callable] : Function to compute the kernel matrix
+        alpha [float] : Divergence order
         use_avg [boolean] : Determines whether to use Jensen-Shannon-like divergence wrt midpoint
+        use_full [boolean] : Use the kernel even for the outer probability term
+        symmatric [boolean] : Use the symmetric version of the divergence
     Output:
         div [1 x 1 tensor] similarity sensitive divergence of between mu and nu
     """
@@ -216,27 +218,44 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False):
     Kxx = kernel(X, X)
     
     Kyy_p = p @ Kyy.transpose(0, 1)
-    Kxy_p = p @ Kyx
+    Kyx_p = p @ Kyx.transpose(0, 1)
     
+    Kxy_q = q @ Kyx
     Kxx_q = q @ Kxx.transpose(0, 1)
-    Kyx_q = q @ Kyx.transpose(0, 1)
-    
-    if use_avg:
-        rat1 = (2 * Kyy_p, Kyy_p + Kyx_q)
-        rat2 = (2 * Kxx_q, Kxx_q + Kxy_p)
+
+    if use_full:
+        Kp = torch.cat([Kyy_p, Kyx_p], dim=1)
+        Kq = torch.cat([Kxy_q, Kxx_q], dim=1)
+        if use_avg:
+            rat1 = (2 * Kp, Kp + Kq)
+            rat2 = (2 * Kq, Kq + Kp)
+        else:
+            rat1 = (Kp, Kq)
+            rat2 = (Kq, Kp)
+        P = Kp
+        Q = Kq
     else:
-        rat1 = (Kyy_p, Kyx_q)
-        rat2 = (Kxx_q, Kxy_p)
+        if use_avg:
+            rat1 = (2 * Kyy_p, Kyy_p + Kxy_q)
+            rat2 = (2 * Kxx_q, Kxx_q + Kyx_p)
+        else:
+            rat1 = (Kyy_p, Kxy_q)
+            rat2 = (Kxx_q, Kyx_p)
+        P = p
+        Q = q
 
     if np.allclose(alpha, 1.0):
-        div = (p * (utils.clamp_log_prob(rat1[0]) - utils.clamp_log_prob(rat1[1]))).sum(dim=-1) + \
-            (q * (utils.clamp_log_prob(rat2[0]) - utils.clamp_log_prob(rat2[1]))).sum(dim=-1)
+        div = (P * (utils.clamp_log_prob(rat1[0]) - utils.clamp_log_prob(rat1[1]))).sum(dim=-1)
+        if symmetric:
+            div = div + (Q * (utils.clamp_log_prob(rat2[0]) - utils.clamp_log_prob(rat2[1]))).sum(dim=-1)
     else:
-        power_pq = utils.clamp_log_prob(p) + (alpha - 1) * (utils.clamp_log_prob(rat1[0]) -
+        power_pq = utils.clamp_log_prob(P) + (alpha - 1) * (utils.clamp_log_prob(rat1[0]) -
                                                             utils.clamp_log_prob(rat1[1]))
-        power_qp = utils.clamp_log_prob(q) + (alpha - 1) * (utils.clamp_log_prob(rat2[0]) -
-                                                            utils.clamp_log_prob(rat2[1]))
-        div = (1 / (alpha - 1)) * (torch.logsumexp(power_pq, 1) + torch.logsumexp(power_qp, 1))
+        div = (1 / (alpha - 1)) * torch.logsumexp(power_pq, 1)
+        if symmetric:
+            power_qp = utils.clamp_log_prob(Q) + (alpha - 1) * (utils.clamp_log_prob(rat2[0]) -
+                                                                utils.clamp_log_prob(rat2[1]))
+            div = div + (1 / (alpha - 1)) * torch.logsumexp(power_qp, 1)
 
     return div
 
