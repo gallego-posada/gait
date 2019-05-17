@@ -74,7 +74,7 @@ class FixedModel(BaseFixed):
         x = labels.view_as(x_gen)
         alpha = self.alpha_decay.get_y(self.get_train_steps())
         D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel, alpha,
-                                                        use_avg=self.flags.use_avg)
+                                                        use_full=self.flags.use_full, use_avg=self.flags.use_avg)
         if self.flags.unbiased == 0:
             return D(x, x_gen)
         else:

@@ -30,6 +30,7 @@ if __name__ == '__main__':
     arg(parser, 'alpha_decay_start', type=int, default=2000, help='step to start alpha decay')
     arg(parser, 'alpha_decay_end', type=int, default=10000, help='step to end alpha decay')
     arg(parser, 'use_avg', type=bool, default=False, help='use_avg in renyi mixture divergence')
+    arg(parser, 'use_full', type=bool, default=False, help='use_full in renyi mixture divergence')
     arg(parser, 'unbiased', type=int, default=0, help='unbiased gradients mode (0: none, 1: eq, 2: algo)')
     arg(parser, 'resnet', type=bool, default=False, help='use the ResNet')
     arg(parser, 'kernel_sigma', type=float, default=2.5, help='sigma for gaussian kernel')
