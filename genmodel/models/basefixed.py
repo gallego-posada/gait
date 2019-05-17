@@ -9,4 +9,7 @@ class BaseFixed(Model):
 
     def prepare_batch(self, data):
         batch = super().prepare_batch(data)
-        return (b.double() for b in batch)
+        if isinstance(batch, tuple):
+            return tuple(b.double() for b in batch)
+        else:
+            return batch.double()
