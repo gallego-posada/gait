@@ -1,6 +1,8 @@
 import argparse
 import os
 
+import torch
+
 from pylego.misc import add_argument as arg
 
 from runners.fixedrunner import FixedRunner
@@ -48,6 +50,8 @@ if __name__ == '__main__':
         flags.threads = max(1, len(os.sched_getaffinity(0)) - 1)
     if flags.grad_norm < 0:
         flags.grad_norm = None
+
+    torch.set_default_dtype(torch.float64)
 
     iters = 0
     while True:
