@@ -16,6 +16,10 @@ def gaussian_kernel(sigma):
     return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.rbf_kernel(u, v, sigmas=[sigma]))
 
 
+def poly_kernel(degree):
+    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.poly_kernel(u, v, degree=degree))
+
+
 class Decoder(nn.Module):
 
     def __init__(self, z_size, hidden_size, output_size, resnet=False):
@@ -67,14 +71,18 @@ class FixedModel(BaseFixed):
         uniform = torch.ones(1, self.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
         self.alpha_decay = LinearDecay(flags.alpha_decay_start, flags.alpha_decay_end, flags.alpha_initial, flags.alpha)
-        self.kernel = gaussian_kernel(self.flags.kernel_sigma)
+        if self.flags.kernel == 'gaussian':
+            self.kernel = gaussian_kernel(self.flags.kernel_sigma)
+        elif self.flags.kernel == 'poly':
+            self.kernel = poly_kernel(self.flags.kernel_degree)
 
     def loss_function(self, forward_ret, labels=None):
         x_gen = forward_ret
         x = labels.view_as(x_gen)
         alpha = self.alpha_decay.get_y(self.get_train_steps())
         D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel, alpha,
-                                                        use_full=self.flags.use_full, use_avg=self.flags.use_avg)
+                                                        use_full=self.flags.use_full, use_avg=self.flags.use_avg,
+                                                        symmetric=self.flags.symmetric)
         if self.flags.unbiased == 0:
             return D(x, x_gen)
         else:

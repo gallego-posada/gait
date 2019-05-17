@@ -27,15 +27,18 @@ if __name__ == '__main__':
     arg(parser, 'epochs', type=int, default=500, help='no. of training epochs')
     arg(parser, 'h_size', type=int, default=256, help='hidden state dims')
     arg(parser, 'z_size', type=int, default=2, help='latent dims per layer')
-    arg(parser, 'alpha', type=float, default=0.1, help='alpha')
-    arg(parser, 'alpha_initial', type=float, default=2, help='initial value of alpha')
+    arg(parser, 'alpha', type=float, default=1, help='alpha')
+    arg(parser, 'alpha_initial', type=float, default=1, help='initial value of alpha')
     arg(parser, 'alpha_decay_start', type=int, default=2000, help='step to start alpha decay')
     arg(parser, 'alpha_decay_end', type=int, default=10000, help='step to end alpha decay')
     arg(parser, 'use_avg', type=bool, default=False, help='use_avg in renyi mixture divergence')
     arg(parser, 'use_full', type=bool, default=False, help='use_full in renyi mixture divergence')
+    arg(parser, 'symmetric', type=bool, default=True, help='symmetric in renyi mixture divergence')
     arg(parser, 'unbiased', type=int, default=0, help='unbiased gradients mode (0: none, 1: eq, 2: algo)')
     arg(parser, 'resnet', type=bool, default=False, help='use the ResNet')
+    arg(parser, 'kernel', type=str, default='gaussian', help='one of: gaussian, poly')
     arg(parser, 'kernel_sigma', type=float, default=2.5, help='sigma for gaussian kernel')
+    arg(parser, 'kernel_degree', type=float, default=2, help='degree for polynomial kernel')
     arg(parser, 'print_every', type=int, default=50, help='print losses every these many steps')
     arg(parser, 'max_batches', type=int, default=-1, help='max batches per split (for debugging)')
     arg(parser, 'gpus', type=str, default='0')
@@ -50,8 +53,6 @@ if __name__ == '__main__':
         flags.threads = max(1, len(os.sched_getaffinity(0)) - 1)
     if flags.grad_norm < 0:
         flags.grad_norm = None
-
-    torch.set_default_dtype(torch.float64)
 
     iters = 0
     while True:
