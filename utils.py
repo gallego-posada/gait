@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 from skimage.transform import resize
-EPS = 2e-38
 
 
 def batch_pdist(X, Y, p=2):
@@ -11,16 +10,20 @@ def batch_pdist(X, Y, p=2):
 def batch_cosine_similarity(X, Y, p=2):
     return torch.cosine_similarity(X[..., None, :], Y[..., None, :, :], dim=-1)
 
-def min_clamp_prob(x, c=EPS):
-	return c + (x * (1 - c))
+def min_clamp_prob(x, c=None):
+    if c is None:
+        c = torch.finfo(x.dtype).tiny * 2
+    return c + (x * (1 - c))
 
-def min_clamp(x, c=EPS):
-	return c + x
+def min_clamp(x, c=None):
+    if c is None:
+        c = torch.finfo(x.dtype).tiny * 2
+    return c + x
 
-def clamp_log_prob(x, c=EPS):
+def clamp_log_prob(x, c=None):
     return torch.log(min_clamp_prob(x, c))
 
-def clamp_log(x, c=EPS):
+def clamp_log(x, c=None):
     return torch.log(min_clamp(x, c))
 
 def from_numpy(x, requires_grad=False):
