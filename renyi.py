@@ -20,11 +20,11 @@ def renyi_sim_entropy(K, p, alpha=1):
     
     
     if alpha == 1:
-        ent = -(p * utils.clamp_log_prob(pK)).sum(dim=-1)
+        ent = -(p * torch.log(pK)).sum(dim=-1)
     else:
         Kpa = pK ** (alpha - 1)
         v = (p * Kpa).sum(dim=-1, keepdim=True) 
-        ent = utils.clamp_log_prob(v) / (1 - alpha)
+        ent = torch.log(v) / (1 - alpha)
     
     return ent
 
@@ -184,14 +184,12 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
         sum_dims = -1
 
     if np.allclose(alpha, 1.0):            
-        dp1 = (p * (utils.clamp_log_prob(rat1[0]) - utils.clamp_log_prob(rat1[1]))).sum(sum_dims)
-        dp2 = (q * (utils.clamp_log_prob(rat2[0]) - utils.clamp_log_prob(rat2[1]))).sum(sum_dims)
+        dp1 = (p * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(sum_dims)
+        dp2 = (q * (torch.log(rat2[0]) - torch.log(rat2[1]))).sum(sum_dims)
         return dp1 + dp2
     else:
-        power_pq = utils.clamp_log_prob(p) + (alpha - 1) * (utils.clamp_log_prob(rat1[0]) -
-                                                            utils.clamp_log_prob(rat1[1]))
-        power_qp = utils.clamp_log_prob(q) + (alpha - 1) * (utils.clamp_log_prob(rat2[0]) -
-                                                            utils.clamp_log_prob(rat2[1]))
+        power_pq = torch.log(p) + (alpha - 1) * (torch.log(rat1[0]) - torch.log(rat1[1]))
+        power_qp = torch.log(q) + (alpha - 1) * (torch.log(rat2[0]) - torch.log(rat2[1]))
         return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
 
 
@@ -245,16 +243,14 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=
         Q = q
 
     if np.allclose(alpha, 1.0):
-        div = (P * (utils.clamp_log_prob(rat1[0]) - utils.clamp_log_prob(rat1[1]))).sum(dim=-1)
+        div = (P * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(dim=-1)
         if symmetric:
-            div = div + (Q * (utils.clamp_log_prob(rat2[0]) - utils.clamp_log_prob(rat2[1]))).sum(dim=-1)
+            div = div + (Q * (torch.log(rat2[0]) - torch.log(rat2[1]))).sum(dim=-1)
     else:
-        power_pq = utils.clamp_log_prob(P) + (alpha - 1) * (utils.clamp_log_prob(rat1[0]) -
-                                                            utils.clamp_log_prob(rat1[1]))
+        power_pq = torch.log(P) + (alpha - 1) * (torch.log(rat1[0]) - torch.log(rat1[1]))
         div = (1 / (alpha - 1)) * torch.logsumexp(power_pq, 1)
         if symmetric:
-            power_qp = utils.clamp_log_prob(Q) + (alpha - 1) * (utils.clamp_log_prob(rat2[0]) -
-                                                                utils.clamp_log_prob(rat2[1]))
+            power_qp = torch.log(Q) + (alpha - 1) * (torch.log(rat2[0]) - torch.log(rat2[1]))
             div = div + (1 / (alpha - 1)) * torch.logsumexp(power_qp, 1)
 
     return div
@@ -265,14 +261,14 @@ def cosine_similarity(X, Y):
 
 def poly_kernel(X, Y, degree=2, p=2):
     pdist = utils.batch_pdist(X, Y, p)
-    return 1 / (1 + pdist)**degree
+    return utils.min_clamp_prob(1 / (1 + pdist)**degree)
 
 def rbf_kernel(X, Y, sigmas=[1.], p=2, degree=2):
     pdist = utils.batch_pdist(X, Y, p)
     res = torch.zeros_like(pdist)
     for sigma in sigmas:
         res += torch.exp(- (pdist/sigma)**degree)
-    return res / len(sigmas)
+    return utils.min_clamp_prob(res / len(sigmas))
 
 def generic_kernel(X, Y, kernel_fn, full=False):
     if full:
