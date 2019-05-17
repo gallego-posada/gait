@@ -218,14 +218,14 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=
     Kxx = kernel(X, X)
     
     Kyy_p = p @ Kyy.transpose(0, 1)
-    Kyx_p = p @ Kyx.transpose(0, 1)
+    Kxy_p = p @ Kyx
     
-    Kxy_q = q @ Kyx
+    Kyx_q = q @ Kyx.transpose(0, 1)
     Kxx_q = q @ Kxx.transpose(0, 1)
 
     if use_full:
-        Kp = torch.cat([Kyy_p, Kyx_p], dim=1)
-        Kq = torch.cat([Kxy_q, Kxx_q], dim=1)
+        Kp = torch.cat([Kyy_p, Kxy_p], dim=1)
+        Kq = torch.cat([Kyx_q, Kxx_q], dim=1)
         if use_avg:
             rat1 = (2 * Kp, Kp + Kq)
             rat2 = (2 * Kq, Kq + Kp)
@@ -236,11 +236,11 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=
         Q = Kq
     else:
         if use_avg:
-            rat1 = (2 * Kyy_p, Kyy_p + Kxy_q)
-            rat2 = (2 * Kxx_q, Kxx_q + Kyx_p)
+            rat1 = (2 * Kyy_p, Kyy_p + Kyx_q)
+            rat2 = (2 * Kxx_q, Kxx_q + Kxy_p)
         else:
-            rat1 = (Kyy_p, Kxy_q)
-            rat2 = (Kxx_q, Kyx_p)
+            rat1 = (Kyy_p, Kyx_q)
+            rat2 = (Kxx_q, Kxy_p)
         P = p
         Q = q
 
