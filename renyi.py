@@ -270,6 +270,11 @@ def rbf_kernel(X, Y, sigmas=[1.], p=2, degree=2):
         res += torch.exp(- (pdist/sigma)**degree)
     return utils.min_clamp_prob(res / len(sigmas))
 
+def multiquad_kernel(X, Y, sigma=1., p=2, degree=2):
+    pdist = utils.batch_pdist(X, Y, p)
+    C = 2 * X.size(-1) * (sigma ** degree)
+    return utils.min_clamp_prob(C / (C + (pdist ** degree)))
+
 def generic_kernel(X, Y, kernel_fn, full=False):
     if full:
         W = torch.cat((X, Y))
