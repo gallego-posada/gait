@@ -256,6 +256,50 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=
     return div
 
 
+def test_mixture_divergence(p, Y, q, X, kernel, use_avg=False, stochastic=True, symmetric=True):
+    """
+    Inputs:
+        p [1 x n tensor] : Probability distribution over n elements
+        Y [n x d tensor] : Locations of the atoms of the measure p
+        q [1 x m tensor] : Probability distribution over m elements
+        X [n x d tensor] : Locations of the atoms of the measure q
+        kernel [callable] : Function to compute the kernel matrix
+    Output:
+        div [1 x 1 tensor] similarity sensitive divergence of between mu and nu
+    """
+
+    Kyy = kernel(Y, Y)
+    Kyx = kernel(Y, X)
+    Kxx = kernel(X, X)
+
+    Kyy_p = p @ Kyy.transpose(0, 1)
+    Kxy_p = p @ Kyx
+    Kyx_q = q @ Kyx.transpose(0, 1)
+    Kxx_q = q @ Kxx.transpose(0, 1)
+    Kp = torch.cat([Kyy_p, Kxy_p], dim=1)
+    Kq = torch.cat([Kyx_q, Kxx_q], dim=1)
+
+    if use_avg:
+        Km = (Kp + Kq) / 2
+        div = (Kp * (torch.log(Kp) - torch.log(Km))).sum(dim=1) / Kp.sum(dim=1)
+        if stochastic:
+            div = div + torch.log(Km.sum(dim=1)) - torch.log(Kp.sum(dim=1))
+        if symmetric:
+            div = div + (Kq * (torch.log(Kq) - torch.log(Km))).sum(dim=1) / Kq.sum(dim=1)
+            if stochastic:
+                div = div + torch.log(Km.sum(dim=1)) - torch.log(Kq.sum(dim=1))
+    else:
+        div = (Kp * (torch.log(Kp) - torch.log(Kq))).sum(dim=1) / Kp.sum(dim=1)
+        if stochastic:
+            div = div + torch.log(Kq.sum(dim=1)) - torch.log(Kp.sum(dim=1))
+        if symmetric:
+            div = div + (Kq * (torch.log(Kq) - torch.log(Kp))).sum(dim=1) / Kq.sum(dim=1)
+            if stochastic:
+                div = div + torch.log(Kp.sum(dim=1)) - torch.log(Kq.sum(dim=1))
+
+    return div
+
+
 def cosine_similarity(X, Y):
     return utils.batch_cosine_similarity(X, Y)
 
