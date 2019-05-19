@@ -13,11 +13,11 @@ import renyi
 
 
 def gaussian_kernel(sigma):
-    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.rbf_kernel(u, v, sigmas=[sigma]))
+    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.rbf_kernel(u, v, sigmas=[sigma], log=True))
 
 
 def poly_kernel(degree):
-    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.poly_kernel(u, v, degree=degree))
+    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.poly_kernel(u, v, degree=degree, log=True))
 
 
 class Decoder(nn.Module):
@@ -80,9 +80,9 @@ class FixedModel(BaseFixed):
         x_gen = forward_ret
         x = labels.view_as(x_gen)
         alpha = self.alpha_decay.get_y(self.get_train_steps())
-        D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel, alpha,
-                                                        use_full=self.flags.use_full, use_avg=self.flags.use_avg,
-                                                        symmetric=self.flags.symmetric)
+        D = lambda x, y: renyi.renyi_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel, alpha,
+                                                               use_full=self.flags.use_full, use_avg=self.flags.use_avg,
+                                                               symmetric=self.flags.symmetric)
         if self.flags.unbiased == 0:
             return D(x, x_gen)
         else:
