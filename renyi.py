@@ -278,10 +278,10 @@ def renyi_mixture_divergence_stable(p, Y, q, X, log_kernel, alpha, use_avg=False
     log_Kyx = log_kernel(Y, X)
     log_Kxx = log_kernel(X, X)
 
-    log_Kyy_p = torch.logsumexp(log_Kyy + torch.log(p), dim=1, keepdim=True)
-    log_Kxy_p = torch.logsumexp(log_Kyx.transpose(0, 1) + torch.log(p), dim=1, keepdim=True)
-    log_Kyx_q = torch.logsumexp(log_Kyx + torch.log(q), dim=1, keepdim=True)
-    log_Kxx_q = torch.logsumexp(log_Kxx + torch.log(q), dim=1, keepdim=True)
+    log_Kyy_p = torch.logsumexp(log_Kyy + torch.log(p), dim=1, keepdim=True).transpose(0, 1)
+    log_Kxy_p = torch.logsumexp(log_Kyx.transpose(0, 1) + torch.log(p), dim=1, keepdim=True).transpose(0, 1)
+    log_Kyx_q = torch.logsumexp(log_Kyx + torch.log(q), dim=1, keepdim=True).transpose(0, 1)
+    log_Kxx_q = torch.logsumexp(log_Kxx + torch.log(q), dim=1, keepdim=True).transpose(0, 1)
 
     if use_full:
         log_Kp = torch.cat([log_Kyy_p, log_Kxy_p], dim=1)
