@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+from torch.nn import functional as F
+
 import utils
 
 
@@ -17,15 +19,39 @@ def renyi_sim_entropy(K, p, alpha=1):
         [batch_size x 1 tensor] of entropy for each distribution
     """
     pK = p @ K
-    
-    
-    if alpha == 1:
+
+    if np.allclose(alpha, 1.0):
         ent = -(p * torch.log(pK)).sum(dim=-1)
     else:
         Kpa = pK ** (alpha - 1)
-        v = (p * Kpa).sum(dim=-1, keepdim=True) 
+        v = (p * Kpa).sum(dim=-1, keepdim=True)
         ent = torch.log(v) / (1 - alpha)
+
+    return ent
+
+
+def renyi_sim_entropy_stable(log_K, p, alpha=1):
+    """
+    Compute similarity sensitive Renyi entropy of a (batch of) distribution(s) p
+    over an alphabet of n elements.
     
+    Inputs:
+        log_K [n x n tensor] : Log of positive semi-definite similarity matrix
+        p [batch_size x n tensor] : Probability distributions over n elements
+        alpha [float] : Divergence order
+    
+    Output:
+        [batch_size x 1 tensor] of entropy for each distribution
+    """
+    log_pK = torch.logsumexp(log_K[None, ...] + torch.log(p[:, None, :]), dim=2)
+
+    if np.allclose(alpha, 1.0):
+        ent = -(p * log_pK).sum(dim=-1)
+    else:
+        log_Kpa = log_pK * (alpha - 1)
+        log_v = torch.logsumexp(torch.log(p) + log_Kpa, dim=-1, keepdim=True)
+        ent = log_v / (1 - alpha)
+
     return ent
 
 
@@ -158,14 +184,14 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
     Output:
         div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q 
     """
-    
+
     if callable(K):
         pK = K(p)
         qK = K(q)
     else:
         pK = p @ K
         qK = q @ K
-    
+
     if use_avg:
         r = (p + q) / 2
         if callable(K):
@@ -190,6 +216,55 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
     else:
         power_pq = torch.log(p) + (alpha - 1) * (torch.log(rat1[0]) - torch.log(rat1[1]))
         power_qp = torch.log(q) + (alpha - 1) * (torch.log(rat2[0]) - torch.log(rat2[1]))
+        return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
+
+
+def renyi_sim_divergence_stable(log_K, p, q, alpha=2, use_avg=False):
+    """
+    Compute similarity sensitive Renyi divergence of between a pair of (batches of)
+    distribution(s) p and q over an alphabet of n elements.
+
+    Inputs:
+        p [batch_size x n tensor] : Probability distributions over n elements
+        q [batch_size x n tensor] : Probability distributions over n elements
+        log_K [n x n tensor or callable] : Log of positive semi-definite similarity matrix or function
+        alpha [float] : Divergence order
+        use_inv [boolean] : Determines whether to compare similarity or dissimilarity profiles
+    Output:
+        div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q 
+    """
+    
+    if callable(log_K):
+        log_pK = log_K(p)
+        log_qK = log_K(q)
+    else:
+        log_pK = torch.logsumexp(log_K[None, ...] + torch.log(p[:, None, :]), dim=2)
+        log_qK = torch.logsumexp(log_K[None, ...] + torch.log(q[:, None, :]), dim=2)
+
+    if use_avg:
+        r = (p + q) / 2
+        if callable(log_K):
+            log_rK = log_K(r)
+        else:
+            log_rK = torch.logsumexp(log_K[None, ...] + torch.log(r[:, None, :]), dim=2)
+        rat1 = (log_pK, log_rK)
+        rat2 = (log_qK, log_rK)
+    else:
+        rat1 = (log_pK, log_qK)
+        rat2 = (log_qK, log_pK)
+
+    if callable(log_K):  # we're dealing with an image
+        sum_dims = (-2, -1)
+    else:
+        sum_dims = -1
+
+    if np.allclose(alpha, 1.0):            
+        dp1 = (p * (rat1[0] - rat1[1])).sum(sum_dims)
+        dp2 = (q * (rat2[0] - rat2[1])).sum(sum_dims)
+        return dp1 + dp2
+    else:
+        power_pq = torch.log(p) + (alpha - 1) * (rat1[0] - rat1[1])
+        power_qp = torch.log(q) + (alpha - 1) * (rat2[0] - rat2[1])
         return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
 
 
@@ -323,47 +398,44 @@ def renyi_mixture_divergence_stable(p, Y, q, X, log_kernel, alpha, use_avg=False
     return div
 
 
-def test_mixture_divergence(p, Y, q, X, kernel, use_avg=False, symmetric=True):
+def test_mixture_divergence(p, Y, q, X, log_kernel, symmetric=False, use_avg=False):
     """
     Inputs:
         p [1 x n tensor] : Probability distribution over n elements
         Y [n x d tensor] : Locations of the atoms of the measure p
         q [1 x m tensor] : Probability distribution over m elements
         X [n x d tensor] : Locations of the atoms of the measure q
-        kernel [callable] : Function to compute the kernel matrix
+        log_kernel [callable] : Function to compute the log kernel matrix
     Output:
         div [1 x 1 tensor] similarity sensitive divergence of between mu and nu
     """
+    log_Kyy = log_kernel(Y, Y)
+    log_Kyx = log_kernel(Y, X)
+    log_Kxx = log_kernel(X, X)
 
-    Kyy = kernel(Y, Y)
-    Kyx = kernel(Y, X)
-    Kxx = kernel(X, X)
+    log_Kyy_p = torch.logsumexp(log_Kyy + torch.log(p), dim=1, keepdim=True).transpose(0, 1)
+    log_Kxy_p = torch.logsumexp(log_Kyx.transpose(0, 1) + torch.log(p), dim=1, keepdim=True).transpose(0, 1)
+    log_Kyx_q = torch.logsumexp(log_Kyx + torch.log(q), dim=1, keepdim=True).transpose(0, 1)
+    log_Kxx_q = torch.logsumexp(log_Kxx + torch.log(q), dim=1, keepdim=True).transpose(0, 1)
 
-    one = torch.ones_like(p)
+    log_K = torch.cat([torch.cat([log_Kyy, log_Kyx], dim=1), torch.cat([log_Kyx.transpose(0, 1), log_Kxx], dim=1)],
+                      dim=0)
+    T = F.softmax(log_K, dim=1)
 
-    Kyy_p = p @ Kyy.transpose(0, 1)
-    Kxy_p = p @ Kyx
-    Kyx_q = q @ Kyx.transpose(0, 1)
-    Kxx_q = q @ Kxx.transpose(0, 1)
-
-    Kyy_1 = one @ Kyy.transpose(0, 1)
-    Kxy_1 = one @ Kyx
-    Kyx_1 = one @ Kyx.transpose(0, 1)
-    Kxx_1 = one @ Kxx.transpose(0, 1)
-
-    Kp = torch.cat([Kyy_p, Kxy_p], dim=1)
-    Kq = torch.cat([Kyx_q, Kxx_q], dim=1)
-    K1 = torch.cat([Kyy_1 + Kyx_1, Kxy_1 + Kxx_1], dim=1)
+    log_Kp = torch.cat([log_Kyy_p, log_Kxy_p], dim=1)
+    log_Kq = torch.cat([log_Kyx_q, log_Kxx_q], dim=1)
 
     if use_avg:
-        Km = (Kp + Kq) / 2
-        div = ((Kp/K1) * (torch.log(Kp) - torch.log(Km))).sum(dim=1)
-        if symmetric:
-            div = div + ((Kq/K1) * (torch.log(Kq) - torch.log(Km))).sum(dim=1)
+        log_Kp_Kq = torch.logsumexp(torch.stack([log_Kp, log_Kq]), 0)
+        rat1 = (np.log(2) + log_Kp, log_Kp_Kq)
+        rat2 = (np.log(2) + log_Kq, log_Kp_Kq)
     else:
-        div = ((Kp/K1) * (torch.log(Kp) - torch.log(Kq))).sum(dim=1)
-        if symmetric:
-            div = div + ((Kq/K1) * (torch.log(Kq) - torch.log(Kp))).sum(dim=1)
+        rat1 = (log_Kp, log_Kq)
+        rat2 = (log_Kq, log_Kp)
+
+    div = p @ (T * (rat1[0] - rat1[1])).sum(dim=1, keepdim=True)[:p.size(1)]
+    if symmetric:
+        div = div + q @ (T * (rat2[0] - rat2[1])).sum(dim=1, keepdim=True)[p.size(1):]
 
     return div
 
