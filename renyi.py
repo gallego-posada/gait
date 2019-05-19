@@ -256,14 +256,16 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=
     return div
 
 
-def renyi_mixture_divergence_stable(Y, X, log_kernel, alpha, use_avg=False, use_full=False, symmetric=True):
+def renyi_mixture_divergence_stable(p, Y, q, X, log_kernel, alpha, use_avg=False, use_full=False, symmetric=True):
     """
     Compute similarity sensitive Renyi divergence of between a pair of empirical uniform distributions p and q
     with non-overlapping supports Y and X respectively
     Inputs:
+        p [1 x n tensor] : Probability distribution over n elements
         Y [n x d tensor] : Locations of the atoms of the measure p
+        q [1 x m tensor] : Probability distribution over m elements
         X [n x d tensor] : Locations of the atoms of the measure q
-        kernel [callable] : Function to compute the LOG kernel matrix
+        log_kernel [callable] : Function to compute the log kernel matrix
         alpha [float] : Divergence order
         use_avg [boolean] : Determines whether to use Jensen-Shannon-like divergence wrt midpoint
         use_full [boolean] : Use the kernel even for the outer probability term
@@ -272,37 +274,29 @@ def renyi_mixture_divergence_stable(Y, X, log_kernel, alpha, use_avg=False, use_
         div [1 x 1 tensor] similarity sensitive divergence of between mu and nu
     """
 
-    Kyy, log_Kyy = log_kernel(Y, Y)
-    Kyx, log_Kyx = log_kernel(Y, X)
-    Kxx, log_Kxx = log_kernel(X, X)
+    log_Kyy = log_kernel(Y, Y)
+    log_Kyx = log_kernel(Y, X)
+    log_Kxx = log_kernel(X, X)
 
-    log_Kyy_p = torch.logsumexp(log_Kyy.transpose(0, 1), dim=0, keepdim=True)
-    log_Kxy_p = torch.logsumexp(log_Kyx, dim=0, keepdim=True)
-    log_Kyx_q = torch.logsumexp(log_Kyx.transpose(0, 1), dim=0, keepdim=True)
-    log_Kxx_q = torch.logsumexp(log_Kxx.transpose(0, 1), dim=0, keepdim=True)
+    log_Kyy_p = torch.logsumexp(log_Kyy + torch.log(p), dim=1, keepdim=True)
+    log_Kxy_p = torch.logsumexp(log_Kyx.transpose(0, 1) + torch.log(p), dim=1, keepdim=True)
+    log_Kyx_q = torch.logsumexp(log_Kyx + torch.log(q), dim=1, keepdim=True)
+    log_Kxx_q = torch.logsumexp(log_Kxx + torch.log(q), dim=1, keepdim=True)
 
     if use_full:
-        Kyy_p = torch.sum(Kyy.transpose(0, 1), dim=0, keepdim=True)
-        Kxy_p = torch.sum(Kyx, dim=0, keepdim=True)
-        Kyx_q = torch.sum(Kyx.transpose(0, 1), dim=0, keepdim=True)
-        Kxx_q = torch.sum(Kxx.transpose(0, 1), dim=0, keepdim=True)
-
-        Kp = torch.cat([Kyy_p, Kxy_p], dim=1)
-        Kq = torch.cat([Kyx_q, Kxx_q], dim=1)
         log_Kp = torch.cat([log_Kyy_p, log_Kxy_p], dim=1)
         log_Kq = torch.cat([log_Kyx_q, log_Kxx_q], dim=1)
-
         if use_avg:
-            log_Kp_Kq = torch.logsumexp(torch.stack([Kp, Kq]), 0)
+            log_Kp_Kq = torch.logsumexp(torch.stack([log_Kp, log_Kq]), 0)
             rat1 = (np.log(2) + log_Kp, log_Kp_Kq)
             rat2 = (np.log(2) + log_Kq, log_Kp_Kq)
         else:
             rat1 = (log_Kp, log_Kq)
             rat2 = (log_Kq, log_Kp)
-        P = Kp
-        Q = Kq
         log_P = log_Kp
         log_Q = log_Kq
+        P = torch.exp(log_P)
+        Q = torch.exp(log_Q)
     else:
         if use_avg:
             rat1 = (np.log(2) + log_Kyy_p, torch.logsumexp(torch.stack([log_Kyy_p, log_Kyx_q]), 0))
@@ -310,10 +304,10 @@ def renyi_mixture_divergence_stable(Y, X, log_kernel, alpha, use_avg=False, use_
         else:
             rat1 = (log_Kyy_p, log_Kyx_q)
             rat2 = (log_Kxx_q, log_Kxy_p)
-        P = torch.ones_like(rat1[0])
-        Q = torch.ones_like(rat2[0])
-        log_P = torch.zeros_like(rat1[0])
-        log_Q = torch.zeros_like(rat2[0])
+        P = p
+        Q = q
+        log_P = torch.log(P)
+        log_Q = torch.log(Q)
 
     if np.allclose(alpha, 1.0):
         div = (P * (rat1[0] - rat1[1])).sum(dim=-1)
@@ -377,7 +371,7 @@ def test_mixture_divergence(p, Y, q, X, kernel, use_avg=False, symmetric=True):
 def cosine_similarity(X, Y, log=False):
     ret = utils.batch_cosine_similarity(X, Y)
     if log:
-        return ret, torch.log(ret)
+        return torch.log(ret)
     else:
         return ret
 
@@ -385,7 +379,7 @@ def poly_kernel(X, Y, degree=2, p=2, log=False):
     pdist = utils.batch_pdist(X, Y, p)
     ret = utils.min_clamp_prob(1 / (1 + pdist)**degree)
     if log:
-        return ret, torch.log(ret)
+        return torch.log(ret)
     else:
         return ret
 
@@ -401,7 +395,7 @@ def rbf_kernel(X, Y, sigmas=[1.], p=2, degree=2, log=False):
             log_res += logits
     ret = res / len(sigmas)
     if log:
-        return ret, log_res / len(sigmas)  # incorrect for log if len(sigmas) > 1
+        return log_res / len(sigmas)  # incorrect for log if len(sigmas) > 1
     else:
         return utils.min_clamp_prob(ret)
 
