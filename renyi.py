@@ -256,6 +256,79 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=
     return div
 
 
+def renyi_mixture_divergence_stable(Y, X, log_kernel, alpha, use_avg=False, use_full=False, symmetric=True):
+    """
+    Compute similarity sensitive Renyi divergence of between a pair of empirical uniform distributions p and q
+    with non-overlapping supports Y and X respectively
+    Inputs:
+        Y [n x d tensor] : Locations of the atoms of the measure p
+        X [n x d tensor] : Locations of the atoms of the measure q
+        kernel [callable] : Function to compute the LOG kernel matrix
+        alpha [float] : Divergence order
+        use_avg [boolean] : Determines whether to use Jensen-Shannon-like divergence wrt midpoint
+        use_full [boolean] : Use the kernel even for the outer probability term
+        symmatric [boolean] : Use the symmetric version of the divergence
+    Output:
+        div [1 x 1 tensor] similarity sensitive divergence of between mu and nu
+    """
+
+    Kyy, log_Kyy = log_kernel(Y, Y)
+    Kyx, log_Kyx = log_kernel(Y, X)
+    Kxx, log_Kxx = log_kernel(X, X)
+
+    log_Kyy_p = torch.logsumexp(log_Kyy.transpose(0, 1), dim=0, keepdim=True)
+    log_Kxy_p = torch.logsumexp(log_Kyx, dim=0, keepdim=True)
+    log_Kyx_q = torch.logsumexp(log_Kyx.transpose(0, 1), dim=0, keepdim=True)
+    log_Kxx_q = torch.logsumexp(log_Kxx.transpose(0, 1), dim=0, keepdim=True)
+
+    if use_full:
+        Kyy_p = torch.sum(Kyy.transpose(0, 1), dim=0, keepdim=True)
+        Kxy_p = torch.sum(Kyx, dim=0, keepdim=True)
+        Kyx_q = torch.sum(Kyx.transpose(0, 1), dim=0, keepdim=True)
+        Kxx_q = torch.sum(Kxx.transpose(0, 1), dim=0, keepdim=True)
+
+        Kp = torch.cat([Kyy_p, Kxy_p], dim=1)
+        Kq = torch.cat([Kyx_q, Kxx_q], dim=1)
+        log_Kp = torch.cat([log_Kyy_p, log_Kxy_p], dim=1)
+        log_Kq = torch.cat([log_Kyx_q, log_Kxx_q], dim=1)
+
+        if use_avg:
+            log_Kp_Kq = torch.logsumexp(torch.stack([Kp, Kq]), 0)
+            rat1 = (np.log(2) + log_Kp, log_Kp_Kq)
+            rat2 = (np.log(2) + log_Kq, log_Kp_Kq)
+        else:
+            rat1 = (log_Kp, log_Kq)
+            rat2 = (log_Kq, log_Kp)
+        P = Kp
+        Q = Kq
+        log_P = log_Kp
+        log_Q = log_Kq
+    else:
+        if use_avg:
+            rat1 = (np.log(2) + log_Kyy_p, torch.logsumexp(torch.stack([log_Kyy_p, log_Kyx_q]), 0))
+            rat2 = (np.log(2) + log_Kxx_q, torch.logsumexp(torch.stack([log_Kxx_q, log_Kxy_p]), 0))
+        else:
+            rat1 = (log_Kyy_p, log_Kyx_q)
+            rat2 = (log_Kxx_q, log_Kxy_p)
+        P = torch.ones_like(rat1[0])
+        Q = torch.ones_like(rat2[0])
+        log_P = torch.zeros_like(rat1[0])
+        log_Q = torch.zeros_like(rat2[0])
+
+    if np.allclose(alpha, 1.0):
+        div = (P * (rat1[0] - rat1[1])).sum(dim=-1)
+        if symmetric:
+            div = div + (Q * (rat2[0] - rat2[1])).sum(dim=-1)
+    else:
+        power_pq = log_P + (alpha - 1) * (rat1[0] - rat1[1])
+        div = (1 / (alpha - 1)) * torch.logsumexp(power_pq, 1)
+        if symmetric:
+            power_qp = log_Q + (alpha - 1) * (rat2[0] - rat2[1])
+            div = div + (1 / (alpha - 1)) * torch.logsumexp(power_qp, 1)
+
+    return div
+
+
 def test_mixture_divergence(p, Y, q, X, kernel, use_avg=False, symmetric=True):
     """
     Inputs:
@@ -335,6 +408,6 @@ def rbf_kernel(X, Y, sigmas=[1.], p=2, degree=2, log=False):
 def generic_kernel(X, Y, kernel_fn, full=False, log=False):
     if full:
         W = torch.cat((X, Y))
-        return kernel_fn(W, W, log=log)
+        return kernel_fn(W, W)
     else:
-        return kernel_fn(X, Y, log=log)
+        return kernel_fn(X, Y)
