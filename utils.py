@@ -9,7 +9,7 @@ for dtype in [torch.float16, torch.float32, torch.float64]:
 
 
 def batch_pdist(X, Y, p=2):
-    return torch.norm(X[..., None, :] - Y[..., None, :, :], p=2, dim=-1)
+    return torch.norm(X[..., None, :] - Y[..., None, :, :], p=p, dim=-1)
 
 def batch_cosine_similarity(X, Y, p=2):
     return torch.cosine_similarity(X[..., None, :], Y[..., None, :, :], dim=-1)
