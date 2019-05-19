@@ -301,28 +301,40 @@ def test_mixture_divergence(p, Y, q, X, kernel, use_avg=False, symmetric=True):
     return div
 
 
-def cosine_similarity(X, Y):
-    return utils.batch_cosine_similarity(X, Y)
+def cosine_similarity(X, Y, log=False):
+    ret = utils.batch_cosine_similarity(X, Y)
+    if log:
+        return ret, torch.log(ret)
+    else:
+        return ret
 
-def poly_kernel(X, Y, degree=2, p=2):
+def poly_kernel(X, Y, degree=2, p=2, log=False):
     pdist = utils.batch_pdist(X, Y, p)
-    return utils.min_clamp_prob(1 / (1 + pdist)**degree)
+    ret = utils.min_clamp_prob(1 / (1 + pdist)**degree)
+    if log:
+        return ret, torch.log(ret)
+    else:
+        return ret
 
-def rbf_kernel(X, Y, sigmas=[1.], p=2, degree=2):
+def rbf_kernel(X, Y, sigmas=[1.], p=2, degree=2, log=False):
     pdist = utils.batch_pdist(X, Y, p)
     res = torch.zeros_like(pdist)
+    if log:
+        log_res = torch.zeros_like(pdist)
     for sigma in sigmas:
-        res += torch.exp(- (pdist/sigma)**degree)
-    return utils.min_clamp_prob(res / len(sigmas))
+        logits = - (pdist/sigma)**degree
+        res += torch.exp(logits)
+        if log:
+            log_res += logits
+    ret = res / len(sigmas)
+    if log:
+        return ret, log_res / len(sigmas)  # incorrect for log if len(sigmas) > 1
+    else:
+        return utils.min_clamp_prob(ret)
 
-def multiquad_kernel(X, Y, sigma=1., p=2, degree=2):
-    pdist = utils.batch_pdist(X, Y, p)
-    C = 2 * X.size(-1) * (sigma ** degree)
-    return utils.min_clamp_prob(C / (C + (pdist ** degree)))
-
-def generic_kernel(X, Y, kernel_fn, full=False):
+def generic_kernel(X, Y, kernel_fn, full=False, log=False):
     if full:
         W = torch.cat((X, Y))
-        return kernel_fn(W, W)
+        return kernel_fn(W, W, log=log)
     else:
-        return kernel_fn(X, Y)
+        return kernel_fn(X, Y, log=log)
