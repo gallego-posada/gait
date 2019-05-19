@@ -256,7 +256,7 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=
     return div
 
 
-def test_mixture_divergence(p, Y, q, X, kernel, use_avg=False, stochastic=True, symmetric=True):
+def test_mixture_divergence(p, Y, q, X, kernel, use_avg=False, symmetric=True):
     """
     Inputs:
         p [1 x n tensor] : Probability distribution over n elements
@@ -272,30 +272,31 @@ def test_mixture_divergence(p, Y, q, X, kernel, use_avg=False, stochastic=True, 
     Kyx = kernel(Y, X)
     Kxx = kernel(X, X)
 
+    one = torch.ones_like(p)
+
     Kyy_p = p @ Kyy.transpose(0, 1)
     Kxy_p = p @ Kyx
     Kyx_q = q @ Kyx.transpose(0, 1)
     Kxx_q = q @ Kxx.transpose(0, 1)
+
+    Kyy_1 = one @ Kyy.transpose(0, 1)
+    Kxy_1 = one @ Kyx
+    Kyx_1 = one @ Kyx.transpose(0, 1)
+    Kxx_1 = one @ Kxx.transpose(0, 1)
+
     Kp = torch.cat([Kyy_p, Kxy_p], dim=1)
     Kq = torch.cat([Kyx_q, Kxx_q], dim=1)
+    K1 = torch.cat([Kyy_1 + Kyx_1, Kxy_1 + Kxx_1], dim=1)
 
     if use_avg:
         Km = (Kp + Kq) / 2
-        div = (Kp * (torch.log(Kp) - torch.log(Km))).sum(dim=1) / Kp.sum(dim=1)
-        if stochastic:
-            div = div + torch.log(Km.sum(dim=1)) - torch.log(Kp.sum(dim=1))
+        div = ((Kp/K1) * (torch.log(Kp) - torch.log(Km))).sum(dim=1)
         if symmetric:
-            div = div + (Kq * (torch.log(Kq) - torch.log(Km))).sum(dim=1) / Kq.sum(dim=1)
-            if stochastic:
-                div = div + torch.log(Km.sum(dim=1)) - torch.log(Kq.sum(dim=1))
+            div = div + ((Kq/K1) * (torch.log(Kq) - torch.log(Km))).sum(dim=1)
     else:
-        div = (Kp * (torch.log(Kp) - torch.log(Kq))).sum(dim=1) / Kp.sum(dim=1)
-        if stochastic:
-            div = div + torch.log(Kq.sum(dim=1)) - torch.log(Kp.sum(dim=1))
+        div = ((Kp/K1) * (torch.log(Kp) - torch.log(Kq))).sum(dim=1)
         if symmetric:
-            div = div + (Kq * (torch.log(Kq) - torch.log(Kp))).sum(dim=1) / Kq.sum(dim=1)
-            if stochastic:
-                div = div + torch.log(Kp.sum(dim=1)) - torch.log(Kq.sum(dim=1))
+            div = div + ((Kq/K1) * (torch.log(Kq) - torch.log(Kp))).sum(dim=1)
 
     return div
 
