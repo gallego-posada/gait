@@ -17,15 +17,39 @@ def renyi_sim_entropy(K, p, alpha=1):
         [batch_size x 1 tensor] of entropy for each distribution
     """
     pK = p @ K
-    
-    
-    if alpha == 1:
+
+    if np.allclose(alpha, 1.0):
         ent = -(p * torch.log(pK)).sum(dim=-1)
     else:
         Kpa = pK ** (alpha - 1)
-        v = (p * Kpa).sum(dim=-1, keepdim=True) 
+        v = (p * Kpa).sum(dim=-1, keepdim=True)
         ent = torch.log(v) / (1 - alpha)
+
+    return ent
+
+
+def renyi_sim_entropy_stable(log_K, p, alpha=1):
+    """
+    Compute similarity sensitive Renyi entropy of a (batch of) distribution(s) p
+    over an alphabet of n elements.
     
+    Inputs:
+        log_K [n x n tensor] : Log of positive semi-definite similarity matrix
+        p [batch_size x n tensor] : Probability distributions over n elements
+        alpha [float] : Divergence order
+    
+    Output:
+        [batch_size x 1 tensor] of entropy for each distribution
+    """
+    log_pK = torch.logsumexp(log_K[None, ...] + torch.log(p[:, None, :]), dim=2)
+
+    if np.allclose(alpha, 1.0):
+        ent = -(p * log_pK).sum(dim=-1)
+    else:
+        log_Kpa = log_pK * (alpha - 1)
+        log_v = torch.logsumexp(torch.log(p) + log_Kpa, dim=-1, keepdim=True)
+        ent = log_v / (1 - alpha)
+
     return ent
 
 
