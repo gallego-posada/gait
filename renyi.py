@@ -182,14 +182,14 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
     Output:
         div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q 
     """
-    
+
     if callable(K):
         pK = K(p)
         qK = K(q)
     else:
         pK = p @ K
         qK = q @ K
-    
+
     if use_avg:
         r = (p + q) / 2
         if callable(K):
@@ -214,6 +214,55 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
     else:
         power_pq = torch.log(p) + (alpha - 1) * (torch.log(rat1[0]) - torch.log(rat1[1]))
         power_qp = torch.log(q) + (alpha - 1) * (torch.log(rat2[0]) - torch.log(rat2[1]))
+        return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
+
+
+def renyi_sim_divergence_stable(log_K, p, q, alpha=2, use_avg=False):
+    """
+    Compute similarity sensitive Renyi divergence of between a pair of (batches of)
+    distribution(s) p and q over an alphabet of n elements.
+
+    Inputs:
+        p [batch_size x n tensor] : Probability distributions over n elements
+        q [batch_size x n tensor] : Probability distributions over n elements
+        log_K [n x n tensor or callable] : Log of positive semi-definite similarity matrix or function
+        alpha [float] : Divergence order
+        use_inv [boolean] : Determines whether to compare similarity or dissimilarity profiles
+    Output:
+        div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q 
+    """
+    
+    if callable(log_K):
+        log_pK = log_K(p)
+        log_qK = log_K(q)
+    else:
+        log_pK = torch.logsumexp(log_K[None, ...] + torch.log(p[:, None, :]), dim=2)
+        log_qK = torch.logsumexp(log_K[None, ...] + torch.log(q[:, None, :]), dim=2)
+
+    if use_avg:
+        r = (p + q) / 2
+        if callable(log_K):
+            log_rK = log_K(r)
+        else:
+            log_rK = torch.logsumexp(log_K[None, ...] + torch.log(r[:, None, :]), dim=2)
+        rat1 = (log_pK, log_rK)
+        rat2 = (log_qK, log_rK)
+    else:
+        rat1 = (log_pK, log_qK)
+        rat2 = (log_qK, log_pK)
+
+    if callable(log_K):  # we're dealing with an image
+        sum_dims = (-2, -1)
+    else:
+        sum_dims = -1
+
+    if np.allclose(alpha, 1.0):            
+        dp1 = (p * (rat1[0] - rat1[1])).sum(sum_dims)
+        dp2 = (q * (rat2[0] - rat2[1])).sum(sum_dims)
+        return dp1 + dp2
+    else:
+        power_pq = torch.log(p) + (alpha - 1) * (rat1[0] - rat1[1])
+        power_qp = torch.log(q) + (alpha - 1) * (rat2[0] - rat2[1])
         return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
 
 
