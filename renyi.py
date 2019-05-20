@@ -212,11 +212,11 @@ def renyi_sim_divergence(K, p, q, alpha=2, use_avg=False):
     if np.allclose(alpha, 1.0):            
         dp1 = (p * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(sum_dims)
         dp2 = (q * (torch.log(rat2[0]) - torch.log(rat2[1]))).sum(sum_dims)
-        return dp1 + dp2
+        return 0.5 * (dp1 + dp2)
     else:
         power_pq = torch.log(p) + (alpha - 1) * (torch.log(rat1[0]) - torch.log(rat1[1]))
         power_qp = torch.log(q) + (alpha - 1) * (torch.log(rat2[0]) - torch.log(rat2[1]))
-        return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
+        return 0.5 * (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
 
 
 def renyi_sim_divergence_stable(log_K, p, q, alpha=2, use_avg=False):
@@ -261,11 +261,11 @@ def renyi_sim_divergence_stable(log_K, p, q, alpha=2, use_avg=False):
     if np.allclose(alpha, 1.0):            
         dp1 = (p * (rat1[0] - rat1[1])).sum(sum_dims)
         dp2 = (q * (rat2[0] - rat2[1])).sum(sum_dims)
-        return dp1 + dp2
+        return 0.5 * (dp1 + dp2)
     else:
         power_pq = torch.log(p) + (alpha - 1) * (rat1[0] - rat1[1])
         power_qp = torch.log(q) + (alpha - 1) * (rat2[0] - rat2[1])
-        return (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
+        return 0.5 * (1 / (alpha - 1)) * (torch.logsumexp(power_pq, sum_dims) + torch.logsumexp(power_qp, sum_dims))
 
 
 def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=False, symmetric=True):
@@ -320,13 +320,13 @@ def renyi_mixture_divergence(p, Y, q, X, kernel, alpha, use_avg=False, use_full=
     if np.allclose(alpha, 1.0):
         div = (P * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(dim=-1)
         if symmetric:
-            div = div + (Q * (torch.log(rat2[0]) - torch.log(rat2[1]))).sum(dim=-1)
+            div = 0.5 * (div + (Q * (torch.log(rat2[0]) - torch.log(rat2[1]))).sum(dim=-1))
     else:
         power_pq = torch.log(P) + (alpha - 1) * (torch.log(rat1[0]) - torch.log(rat1[1]))
         div = (1 / (alpha - 1)) * torch.logsumexp(power_pq, 1)
         if symmetric:
             power_qp = torch.log(Q) + (alpha - 1) * (torch.log(rat2[0]) - torch.log(rat2[1]))
-            div = div + (1 / (alpha - 1)) * torch.logsumexp(power_qp, 1)
+            div = 0.5 * (div + (1 / (alpha - 1)) * torch.logsumexp(power_qp, 1))
 
     return div
 
@@ -387,13 +387,13 @@ def renyi_mixture_divergence_stable(p, Y, q, X, log_kernel, alpha, use_avg=False
     if np.allclose(alpha, 1.0):
         div = (P * (rat1[0] - rat1[1])).sum(dim=-1)
         if symmetric:
-            div = div + (Q * (rat2[0] - rat2[1])).sum(dim=-1)
+            div = 0.5 * (div + (Q * (rat2[0] - rat2[1])).sum(dim=-1))
     else:
         power_pq = log_P + (alpha - 1) * (rat1[0] - rat1[1])
         div = (1 / (alpha - 1)) * torch.logsumexp(power_pq, 1)
         if symmetric:
             power_qp = log_Q + (alpha - 1) * (rat2[0] - rat2[1])
-            div = div + (1 / (alpha - 1)) * torch.logsumexp(power_qp, 1)
+            div = 0.5 * (div + (1 / (alpha - 1)) * torch.logsumexp(power_qp, 1))
 
     return div
 
