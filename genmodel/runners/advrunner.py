@@ -1,26 +1,29 @@
 import collections
 
+import numpy as np
 import torch
 
 from pylego import misc
 
-from models.basefixed import BaseFixed
+from models.baseadv import BaseAdversarial
 from .basemnist import MNISTBaseRunner
 
 
-class FixedRunner(MNISTBaseRunner):
+class AdversarialRunner(MNISTBaseRunner):
 
     def __init__(self, flags, *args, **kwargs):
-        super().__init__(flags, BaseFixed, ['loss'])
+        super().__init__(flags, BaseAdversarial, ['g_loss', 'd_loss'])
 
     def run_batch(self, batch, train=False):
         z = torch.rand(self.batch_size, self.flags.z_size)
         z, x = self.model.prepare_batch([z, batch[0]])
-        loss = self.model.run_loss(z, labels=x)
+        loss, g_loss, d_loss = self.model.run_loss([x, z], labels=x)
         if train:
             self.model.train(loss, clip_grad_norm=self.flags.grad_norm)
 
-        return collections.OrderedDict([('loss', loss.item())])
+        assert not np.isnan(g_loss)
+        assert not np.isnan(d_loss)
+        return collections.OrderedDict([('g_loss', g_loss), ('d_loss', d_loss)])
 
     def post_epoch_visualize(self, epoch, split):
         print('* Visualizing', split)
@@ -33,7 +36,7 @@ class FixedRunner(MNISTBaseRunner):
             else:
                 z = torch.rand(20, self.flags.z_size)
             z = self.model.prepare_batch(z)
-            x_gen = self.model.run_batch([z]).view(20, 1, 28, 28).detach().cpu()
+            x_gen = self.model.run_batch([z], visualize=True).detach().cpu()
             x_gens.append(x_gen)
 
         x_full = torch.cat(x_gens, dim=0).numpy()

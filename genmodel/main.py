@@ -1,11 +1,10 @@
 import argparse
 import os
 
-import torch
-
 from pylego.misc import add_argument as arg
 
 from runners.fixedrunner import FixedRunner
+from runners.advrunner import AdversarialRunner
 
 
 if __name__ == '__main__':
@@ -20,6 +19,7 @@ if __name__ == '__main__':
     arg(parser, 'logs_path', type=str, default='logs')
     arg(parser, 'force_logs', type=bool, default=False)
     arg(parser, 'learning_rate', type=float, default=1e-3, help='Adam learning rate')
+    arg(parser, 'lr_decay', type=float, default=0.99, help='learning rate decay')
     arg(parser, 'beta1', type=float, default=0.9, help='Adam beta1')
     arg(parser, 'beta2', type=float, default=0.999, help='Adam beta2')
     arg(parser, 'grad_norm', type=float, default=5.0, help='gradient norm clipping (-1 to disable)')
@@ -39,6 +39,7 @@ if __name__ == '__main__':
     arg(parser, 'kernel', type=str, default='gaussian', help='one of: gaussian, poly')
     arg(parser, 'kernel_sigma', type=float, default=2.25, help='sigma for gaussian kernel')
     arg(parser, 'kernel_degree', type=float, default=2, help='degree for polynomial kernel')
+    arg(parser, 'disc_iters', type=int, default=5, help='no. of discriminator iters before generator update')
     arg(parser, 'print_every', type=int, default=50, help='print losses every these many steps')
     arg(parser, 'max_batches', type=int, default=-1, help='max batches per split (for debugging)')
     arg(parser, 'gpus', type=str, default='0')
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     arg(parser, 'visualize_every', type=int, default=-1,
         help='visualize during training every these many steps (-1 to disable)')
     arg(parser, 'visualize_only', type=bool, default=False, help='epoch visualize the loaded model and exit')
-    arg(parser, 'visualize_split', type=str, default='test', help='split to visualize with visualize_only')
+    arg(parser, 'visualize_split', type=str, default='train', help='split to visualize with visualize_only')
     flags = parser.parse_args()
     if flags.threads < 0:
         flags.threads = max(1, len(os.sched_getaffinity(0)) - 1)
@@ -86,4 +87,6 @@ if __name__ == '__main__':
 
     if flags.model.startswith('fixed.'):
         runner = FixedRunner
-    runner(flags).run(visualize_only=flags.visualize_only, visualize_split=flags.visualize_split)
+    if flags.model.startswith('adv.'):
+        runner = AdversarialRunner
+    runner(flags).run(val_split=None, test_split=None, visualize_only=flags.visualize_only, visualize_split='train')
