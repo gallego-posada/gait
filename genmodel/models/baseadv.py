@@ -29,7 +29,7 @@ class BaseAdversarial(Model):
         if flags.load_file:
             self.load(flags.load_file)
 
-    def train_disc(self):
+    def train_disc(self):  # TODO add gen_iters, but ensure disc starts training first
         '''True if discriminator should be trained, False if generator should be trained.'''
         return (self.get_train_steps() + 1) % (self.flags.disc_iters + 1) != 0
 

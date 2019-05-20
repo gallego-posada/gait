@@ -39,6 +39,7 @@ if __name__ == '__main__':
     arg(parser, 'kernel', type=str, default='gaussian', help='one of: gaussian, poly')
     arg(parser, 'kernel_sigma', type=float, default=2.25, help='sigma for gaussian kernel')
     arg(parser, 'kernel_degree', type=float, default=2, help='degree for polynomial kernel')
+    arg(parser, 'gen_iters', type=int, default=1, help='no. of generator iters before discriminator update')
     arg(parser, 'disc_iters', type=int, default=5, help='no. of discriminator iters before generator update')
     arg(parser, 'print_every', type=int, default=50, help='print losses every these many steps')
     arg(parser, 'max_batches', type=int, default=-1, help='max batches per split (for debugging)')

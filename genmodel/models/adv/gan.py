@@ -1,4 +1,5 @@
 import contextlib
+import functools
 
 import torch
 from torch import autograd, nn
@@ -12,50 +13,41 @@ from ..baseadv import BaseAdversarial
 
 class Discriminator(nn.Module):
 
-    def __init__(self):
+    def __init__(self, out_size=1, negative_slope=0.1):
         super().__init__()
-        self.fc = nn.Sequential(
-            spectral_norm(nn.Conv2d(1, 32, 4, padding=1)),
-            nn.LeakyReLU(0.1),
-            spectral_norm(nn.Conv2d(32, 64, 3, stride=2, padding=1)),
-            nn.LeakyReLU(0.1),
-            spectral_norm(nn.Conv2d(64, 128, 3, stride=2)),
-            nn.LeakyReLU(0.1),
-            spectral_norm(nn.Conv2d(128, 256, 3, stride=2)),
-            nn.LeakyReLU(0.1),
-            spectral_norm(nn.Conv2d(256, 1, 2))
-        )
+        self.leaky_relu = functools.partial(F.leaky_relu, negative_slope=negative_slope)
+
+        self.net = ops.ResNet(1, [(2, 32, 1), (2, 64, 2), (2, 128, 2)], nonlinearity=self.leaky_relu,
+                              negative_slope=negative_slope, enable_gain=False)
+        self.fc = nn.Linear(128 * 7 * 7, out_size)
+
+        for module in self.modules():
+            if hasattr(module, 'weight'):
+                spectral_norm(module, n_power_iterations=1)
 
     def forward(self, x):
-        return self.fc(x).view(x.size(0), -1)
+        x = self.leaky_relu(self.net(x).view(-1, 128 * 7 * 7))
+        return self.fc(x)
 
 
 class Generator(nn.Module):
 
     def __init__(self, z_size):
         super().__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(z_size, 256 * 3 * 3),
-            ops.View(-1, 256, 3, 3),
-            nn.BatchNorm2d(256),
-            nn.ELU(),
-            nn.ConvTranspose2d(256, 128, 3, stride=2),
-            nn.BatchNorm2d(128),
-            nn.ELU(),
-            nn.ConvTranspose2d(128, 64, 3, stride=2),
-            nn.BatchNorm2d(64),
-            nn.ELU(),
-            nn.ConvTranspose2d(64, 32, 3, stride=2, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ELU(),
-            nn.Conv2d(32, 1, 4, padding=1)
-        )
+        self.fc = nn.Linear(z_size, 128 * 7 * 7)
+        self.norm = nn.BatchNorm2d(128)
+        self.net = ops.ResNet(128, [(2, 128, 1), (2, 64, -2), (2, 32, -2), (1, 1, 1)], norm=nn.BatchNorm2d,
+                              skip_last_norm=True)
+
+    def generate(self, z):
+        z = F.elu(self.norm(self.fc(z).view(-1, 128, 7, 7)))
+        return self.net(z)
 
     def forward(self, x, z):
-        return torch.tanh(self.fc(z)), (x * 2.0) - 1.0
+        return torch.tanh(self.generate(z)), (x * 2.0) - 1.0
 
     def visualize(self, z):
-        return torch.sigmoid(self.fc(z))
+        return torch.sigmoid(self.generate(z))
 
 
 class AdversarialModel(BaseAdversarial):
