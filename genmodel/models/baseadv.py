@@ -29,6 +29,29 @@ class BaseAdversarial(Model):
         if flags.load_file:
             self.load(flags.load_file)
 
+    def gradient_penalty(self, d1, d2, context=None):
+        batch_size = d1.size(0)
+        epsilon = torch.rand(batch_size, 1, dtype=d1.dtype, device=d1.device)
+
+        if len(d1.size()) == 4:  # image
+            eps = epsilon[..., None, None]
+        else:
+            eps = epsilon
+        interpolation = (eps * d1.data + (1 - eps) * d2.data).requires_grad_()
+
+        if context is None:
+            context = contextlib.nullcontext()
+        with context:
+            interpolation_logits = self.disc(interpolation)
+        grad_outputs = torch.ones_like(interpolation_logits)
+
+        gradients = autograd.grad(outputs=interpolation_logits, inputs=interpolation, grad_outputs=grad_outputs,
+                                  create_graph=True, retain_graph=True)[0]
+
+        gradients = gradients.view(batch_size, -1)
+        gradients_norm = torch.sqrt(torch.sum(gradients ** 2, dim=1) + 1e-12)
+        return ((gradients_norm - 1) ** 2).mean()
+
     def train_disc(self):  # TODO add gen_iters, but ensure disc starts training first
         '''True if discriminator should be trained, False if generator should be trained.'''
         return (self.get_train_steps() + 1) % (self.flags.disc_iters + 1) != 0
