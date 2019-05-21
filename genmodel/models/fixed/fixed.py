@@ -57,7 +57,6 @@ class FixedModel(BaseFixed):
             self.batch_size = flags.batch_size
         uniform = torch.ones(1, self.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
-        self.alpha_decay = LinearDecay(flags.alpha_decay_start, flags.alpha_decay_end, flags.alpha_initial, flags.alpha)
         if self.flags.kernel == 'gaussian':
             self.kernel = gaussian_kernel(self.flags.kernel_sigma)
         elif self.flags.kernel == 'poly':
@@ -66,9 +65,9 @@ class FixedModel(BaseFixed):
     def loss_function(self, forward_ret, labels=None):
         x_gen = forward_ret
         x = labels.view_as(x_gen)
-        alpha = self.alpha_decay.get_y(self.get_train_steps())
-        D = lambda x, y: renyi.renyi_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel, alpha,
-                                                               use_full=self.flags.use_full, use_avg=self.flags.use_avg,
+        D = lambda x, y: renyi.renyi_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
+                                                               self.flags.alpha, use_full=self.flags.use_full,
+                                                               use_avg=self.flags.use_avg,
                                                                symmetric=self.flags.symmetric)
         if not self.flags.unbiased:
             return D(x, x_gen)
