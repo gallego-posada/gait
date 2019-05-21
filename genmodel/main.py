@@ -43,6 +43,8 @@ if __name__ == '__main__':
     arg(parser, 'sigma_decay_start', type=int, default=1000, help='step to start decaying kernel sigma')
     arg(parser, 'sigma_decay_end', type=int, default=10000, help='step to finish decaying kernel sigma')
     arg(parser, 'kernel_degree', type=float, default=2, help='degree for polynomial or cosine kernel')
+    arg(parser, 'sinkhorn_eps', type=float, default=1, help='Sinkhorn epislon')
+    arg(parser, 'sinkhorn_iters', type=int, default=10, help='Sinkhorn iters')
     arg(parser, 'gen_iters', type=int, default=3, help='no. of generator iters before discriminator update')
     arg(parser, 'disc_iters', type=int, default=1, help='no. of discriminator iters before generator update')
     arg(parser, 'print_every', type=int, default=50, help='print losses every these many steps')

@@ -9,57 +9,33 @@ Discrete OT : Sinkhorn algorithm for point cloud marginals.
 import torch
 
 
-def sinkhorn_normalized(x, y, epsilon, mu, nu, n, m, niter):
-    """
-    Computes the Sinkhorn divergence. It consists in substracting the transport
-    cost of moving the distribution itself. It ensures that the cost of transporting
-    a distribution to itself is zero.
-    """
-    Wxy = sinkhorn_loss(x, y, epsilon, mu, nu, n, m, niter)
-    Wxx = sinkhorn_loss(x, x, epsilon, mu, mu, n, n, niter)
-    Wyy = sinkhorn_loss(y, y, epsilon, nu, nu, m, m, niter)
-    return Wxy - 0.5 * Wxx - 0.5 * Wyy
+def sinkhorn_normalized(x, y, epsilon, n, niter):
+
+    Wxy = sinkhorn_loss(x, y, epsilon, n, niter)
+    Wxx = sinkhorn_loss(x, x, epsilon, n, niter)
+    Wyy = sinkhorn_loss(y, y, epsilon, n, niter)
+    return 2 * Wxy - Wxx - Wyy
 
 
-def sinkhorn_loss(x, y, epsilon, mu, nu, n, m, niter=100, acc=1e-3, unbalanced=False, gpu=False):
+def sinkhorn_loss(x, y, epsilon, n, niter):
     """
     Given two emprical measures with n points each with locations x and y
     outputs an approximation of the OT cost with regularization parameter epsilon
     niter is the max. number of steps in sinkhorn loop
-    
-    INPUTS:
-        x : positions of diracs for the first distribution, torch.FloatTensor of size [n, d]
-        y : positions of diracs for the second distribution, torch.FloatTensor of size [m, d]
-        epsilon : importance of the entropic regularization
-        mu : mass located at each dirac, torch.FloatTensor of size [n]
-        nu : mass located at each dirac, torch.FloatTensor of size [m]
-        n : total number of diracs of the first distribution
-        m : total number of diracs of the second distribution
-        niter : maximum number of Sinkhorn iterations
-        acc : required accuracy to satisfy convergence
-        unbalanced : specify if unbalanced OT needs to be solved
-        gpu : specify usage of CUDA with pytorch
-    
-    OUTPUTs:
-        cost : the cost of moving from distribution x to y
     """
-    # The Sinkhorn algorithm takes as input three variables :
-    C = cost_matrix(x, y).requires_grad_()  # Wasserstein cost function
 
-    # use GPU if asked to
-    if(gpu & torch.cuda.is_available()):  
-        C = C.cuda()
-        mu = nu.cuda()
-        nu = nu.cuda()
-        
+    # The Sinkhorn algorithm takes as input three variables :
+    C = cost_matrix(x, y)  # Wasserstein cost function
+
+    # both marginals are fixed with equal weights
+    mu = torch.ones(n, dtype=C.dtype, device=C.device) / n
+    nu = torch.ones(n, dtype=C.dtype, device=C.device) / n
 
     # Parameters of the Sinkhorn algorithm.
+    rho = 1  # (.5) **2          # unbalanced transport
     tau = -.8  # nesterov-like acceleration
-    thresh = acc  # stopping criterion
-    if(unbalanced):
-        rho = 1  (.5) **2          # unbalanced transport
-        lam = rho / (rho + epsilon)  # Update exponent
-        
+    lam = rho / (rho + epsilon)  # Update exponent
+    thresh = 10**(-1)  # stopping criterion
 
     # Elementary operations .....................................................................
     def ave(u, u1):
@@ -69,25 +45,23 @@ def sinkhorn_loss(x, y, epsilon, mu, nu, n, m, niter=100, acc=1e-3, unbalanced=F
     def M(u, v):
         "Modified cost for logarithmic updates"
         "$M_{ij} = (-c_{ij} + u_i + v_j) / \epsilon$"
-        return (-C + u.repeat(m,1).transpose(0,1) + v.repeat(n,1)) / epsilon
+        return (-C + u.unsqueeze(1) + v.unsqueeze(0)) / epsilon
 
     def lse(A):
         "log-sum-exp"
         return torch.log(torch.exp(A).sum(1, keepdim=True) + 1e-6)  # add 10^-6 to prevent NaN
 
     # Actual Sinkhorn loop ......................................................................
-    u, v, err = torch.zeros_like(mu).requires_grad_(), torch.zeros_like(nu).requires_grad_(), 0.
+    u, v, err = 0. * mu, 0. * nu, 0.
     actual_nits = 0  # to check if algorithm terminates because of threshold or max iterations reached
 
     for i in range(niter):
         u1 = u  # useful to check the update
-        if(unbalanced):
-            # accelerated unbalanced iterations
-            u = ave( u, lam * ( epsilon * ( torch.log(mu) - lse(M(u,v)).squeeze()   ) + u ) )
-            v = ave( v, lam * ( epsilon * ( torch.log(nu) - lse(M(u,v).t()).squeeze() ) + v ) )
-        else:
-            u = epsilon * (torch.log(mu) - lse(M(u, v)).squeeze()) + u
-            v = epsilon * (torch.log(nu) - lse(M(u, v).t()).squeeze()) + v
+        u = epsilon * (torch.log(mu) - lse(M(u, v)).squeeze()) + u
+        v = epsilon * (torch.log(nu) - lse(M(u, v).t()).squeeze()) + v
+        # accelerated unbalanced iterations
+        # u = ave( u, lam * ( epsilon * ( torch.log(mu) - lse(M(u,v)).squeeze()   ) + u ) )
+        # v = ave( v, lam * ( epsilon * ( torch.log(nu) - lse(M(u,v).t()).squeeze() ) + v ) )
         err = (u - u1).abs().sum()
 
         actual_nits += 1
