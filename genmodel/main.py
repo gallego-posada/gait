@@ -40,8 +40,8 @@ if __name__ == '__main__':
     arg(parser, 'kernel', type=str, default='gaussian', help='one of: gaussian, poly, cosine')
     arg(parser, 'kernel_sigma', type=float, default=2.25, help='final sigma for gaussian kernel')
     arg(parser, 'kernel_initial_sigma', type=float, default=2.25, help='initial sigma for gaussian kernel')
-    arg(parser, 'sigma_decay_start', type=int, default=1000, help='step to start decaying kernel sigma')
-    arg(parser, 'sigma_decay_end', type=int, default=10000, help='step to finish decaying kernel sigma')
+    arg(parser, 'sigma_decay_start', type=int, default=-1, help='step to start decaying kernel sigma')
+    arg(parser, 'sigma_decay_end', type=int, default=-1, help='step to finish decaying kernel sigma')
     arg(parser, 'kernel_degree', type=float, default=2, help='degree for polynomial or cosine kernel')
     arg(parser, 'sinkhorn_eps', type=float, default=1, help='Sinkhorn epislon')
     arg(parser, 'sinkhorn_iters', type=int, default=10, help='Sinkhorn iters')
@@ -79,6 +79,11 @@ if __name__ == '__main__':
                 print('*', flags.log_dir, 'already exists')
                 flags.name = flags.name + "_"
         iters += 1
+
+    if flags.kernel_sigma_end < 0:
+        flags.kernel_sigma_start = 0
+        flags.kernel_sigma_end = 1
+        flags.kernel_initial_sigma = flags.kernel_sigma
 
     print('Arguments:', flags)
     if flags.visualize_only and not flags.load_file:
