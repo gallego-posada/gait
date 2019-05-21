@@ -16,14 +16,14 @@ class Discriminator(nn.Module):
 
         self.net = ops.ResNet(1, [(1, 32, 1), (1, 64, 2), (1, 96, 2)], nonlinearity=self.leaky_relu,
                               negative_slope=negative_slope, enable_gain=False)
-        self.fc = nn.Linear(128 * 7 * 7, out_size)
+        self.fc = nn.Linear(96 * 7 * 7, out_size)
 
         for module in self.modules():
             if hasattr(module, 'weight'):
                 spectral_norm(module, n_power_iterations=1)
 
     def forward(self, x):
-        x = self.leaky_relu(self.net(x).view(-1, 128 * 7 * 7))
+        x = self.leaky_relu(self.net(x).view(-1, 96 * 7 * 7))
         return self.fc(x)
 
 
@@ -31,13 +31,13 @@ class Generator(nn.Module):
 
     def __init__(self, z_size):
         super().__init__()
-        self.fc = nn.Linear(z_size, 128 * 7 * 7)
-        self.norm = nn.BatchNorm2d(128)
-        self.net = ops.ResNet(128, [(1, 96, 1), (1, 64, -2), (1, 32, -2), (1, 1, 1)], norm=nn.BatchNorm2d,
+        self.fc = nn.Linear(z_size, 96 * 7 * 7)
+        self.norm = nn.BatchNorm2d(96)
+        self.net = ops.ResNet(96, [(1, 96, 1), (1, 64, -2), (1, 32, -2), (1, 1, 1)], norm=nn.BatchNorm2d,
                               skip_last_norm=True)
 
     def generate(self, z):
-        z = F.elu(self.norm(self.fc(z).view(-1, 128, 7, 7)))
+        z = F.elu(self.norm(self.fc(z).view(-1, 96, 7, 7)))
         return self.net(z)
 
     def forward(self, x, z):
