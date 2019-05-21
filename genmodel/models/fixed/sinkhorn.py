@@ -49,7 +49,6 @@ class SinkhornModel(BaseFixed):
     def loss_function(self, forward_ret, labels=None):
         x_gen = forward_ret
         x = labels.view_as(x_gen)
-        D = lambda x, y: sinkhorn_pointcloud.sinkhorn_normalized(x, y, self.flags.sinkhorn_eps, self.uniform,
-                                                                 self.uniform, self.flags.batch_size,
-                                                                 self.flags.batch_size, self.flags.sinkhorn_iters)
+        D = lambda x, y: sinkhorn_pointcloud.sinkhorn_normalized(x, y, self.flags.sinkhorn_eps, self.flags.batch_size,
+                                                                 self.flags.sinkhorn_iters)
         return D(x, x_gen)
