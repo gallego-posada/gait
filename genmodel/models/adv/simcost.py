@@ -4,6 +4,8 @@ import sys
 import torch
 from torch import autograd
 
+from pylego.misc import LinearDecay
+
 from .arch import Discriminator, Generator
 from ..baseadv import BaseAdversarial
 
@@ -36,7 +38,8 @@ class SimilarityCostModel(BaseAdversarial):
         if flags.kernel == 'cosine':
             self.kernel = cosine_kernel(flags.kernel_degree)
         elif flags.kernel == 'gaussian':
-            self.kernel = gaussian_kernel(flags.kernel_sigma)
+            self.sigma_decay = LinearDecay(flags.sigma_decay_start, flags.sigma_decay_end, flags.kernel_initial_sigma,
+                                           flags.kernel_sigma)
 
     def loss_function(self, forward_ret, labels=None):
         x_gen, x_real = forward_ret
@@ -53,6 +56,8 @@ class SimilarityCostModel(BaseAdversarial):
                                                             self.flags.alpha, use_full=self.flags.use_full,
                                                             use_avg=self.flags.use_avg, symmetric=self.flags.symmetric)
         elif self.flags.kernel == 'gaussian':
+            sigma = self.sigma_decay.get_y(self.get_train_steps())
+            self.kernel = gaussian_kernel(sigma)
             D = lambda x, y: renyi.renyi_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
                                                                    self.flags.alpha, use_full=self.flags.use_full,
                                                                    use_avg=self.flags.use_avg,
