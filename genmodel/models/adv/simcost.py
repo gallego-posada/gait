@@ -3,18 +3,18 @@ import sys
 
 import torch
 from torch import autograd
-from torch.nn import functional as F
 
 from .arch import Discriminator, Generator
 from ..baseadv import BaseAdversarial
 
 sys.path.append('..')
 import renyi
+import utils
 
 
-def cosine_kernel(min_cosine=1e-6):
-    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: (
-        renyi.cosine_similarity(u, v) + 1 + min_cosine) / (2 + min_cosine))
+def cosine_kernel(degree=2):
+    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: utils.min_clamp_prob(
+        ((renyi.cosine_similarity(u, v) + 1) / 2) ** degree))
 
 
 class SimilarityCostModel(BaseAdversarial):
@@ -23,13 +23,13 @@ class SimilarityCostModel(BaseAdversarial):
         generator = Generator(flags.z_size, flags.h_size)
         discriminator = Discriminator(flags.h_size // 2, out_size=flags.v_size)
         super().__init__(flags, generator, discriminator, *args, **kwargs)
-        if flags.unbiased > 0:
+        if flags.unbiased:
             self.batch_size = flags.batch_size // 2
         else:
             self.batch_size = flags.batch_size
         uniform = torch.ones(1, self.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
-        self.kernel = cosine_kernel()
+        self.kernel = cosine_kernel(flags.kernel_degree)
 
     def loss_function(self, forward_ret, labels=None):
         x_gen, x_real = forward_ret
@@ -44,7 +44,7 @@ class SimilarityCostModel(BaseAdversarial):
         D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel, self.flags.alpha,
                                                         use_full=self.flags.use_full, use_avg=self.flags.use_avg,
                                                         symmetric=self.flags.symmetric)
-        if self.flags.unbiased == 0:
+        if not self.flags.unbiased:
             div = D(v_real, v_gen)
         else:
             x_prime = v_real[:self.batch_size]

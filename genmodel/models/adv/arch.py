@@ -33,7 +33,7 @@ class Generator(nn.Module):
         )
 
     def generate(self, z):
-        return self.fc(z).view(-1, 1, 28, 28)
+        return self.fc((z * 2.0) - 1.0).view(-1, 1, 28, 28)
 
     def forward(self, x, z):
         return torch.tanh(self.generate(z)), (x * 2.0) - 1.0

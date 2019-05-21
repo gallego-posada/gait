@@ -35,12 +35,11 @@ if __name__ == '__main__':
     arg(parser, 'use_avg', type=bool, default=False, help='use_avg in renyi mixture divergence')
     arg(parser, 'use_full', type=bool, default=False, help='use_full in renyi mixture divergence')
     arg(parser, 'symmetric', type=bool, default=True, help='symmetric in renyi mixture divergence')
-    arg(parser, 'unbiased', type=int, default=0, help='unbiased gradients mode (0: none, 1: eq, 2: algo)')
-    arg(parser, 'resnet', type=bool, default=False, help='use the ResNet')
+    arg(parser, 'unbiased', type=bool, default=False, help='unbiased gradients mode')
     arg(parser, 'gan_loss', type=str, default='wgan', help='one of: bce, wgan')
     arg(parser, 'kernel', type=str, default='gaussian', help='one of: gaussian, poly')
     arg(parser, 'kernel_sigma', type=float, default=2.25, help='sigma for gaussian kernel')
-    arg(parser, 'kernel_degree', type=float, default=2, help='degree for polynomial kernel')
+    arg(parser, 'kernel_degree', type=float, default=2, help='degree for polynomial or cosine kernel')
     arg(parser, 'gen_iters', type=int, default=1, help='no. of generator iters before discriminator update')
     arg(parser, 'disc_iters', type=int, default=5, help='no. of discriminator iters before generator update')
     arg(parser, 'print_every', type=int, default=50, help='print losses every these many steps')
@@ -75,9 +74,6 @@ if __name__ == '__main__':
                 print('*', flags.log_dir, 'already exists')
                 flags.name = flags.name + "_"
         iters += 1
-
-    if flags.unbiased > 0:
-        flags.batch_size *= 2
 
     print('Arguments:', flags)
     if flags.visualize_only and not flags.load_file:
