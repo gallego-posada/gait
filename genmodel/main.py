@@ -80,9 +80,9 @@ if __name__ == '__main__':
                 flags.name = flags.name + "_"
         iters += 1
 
-    if flags.kernel_sigma_end < 0:
-        flags.kernel_sigma_start = 0
-        flags.kernel_sigma_end = 1
+    if flags.sigma_decay_end < 0:
+        flags.sigma_decay_start = 0
+        flags.sigma_decay_end = 1
         flags.kernel_initial_sigma = flags.kernel_sigma
 
     print('Arguments:', flags)
