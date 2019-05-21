@@ -52,9 +52,9 @@ class BaseAdversarial(Model):
         gradients_norm = torch.sqrt(torch.sum(gradients ** 2, dim=1) + 1e-12)
         return ((gradients_norm - 1) ** 2).mean()
 
-    def train_disc(self):  # TODO add gen_iters, but ensure disc starts training first
+    def train_disc(self):
         '''True if discriminator should be trained, False if generator should be trained.'''
-        return (self.get_train_steps() + 1) % (self.flags.disc_iters + 1) != 0
+        return self.get_train_steps() % (self.flags.disc_iters + self.flags.gen_iters) < self.flags.disc_iters
 
     def train(self, loss, clip_grad_norm=None):
         assert self.is_training()
