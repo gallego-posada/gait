@@ -12,8 +12,9 @@ sys.path.append('..')
 import renyi
 
 
-def gaussian_kernel(sigma):
-    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.rbf_kernel(u, v, sigmas=[sigma], log=True))
+def cosine_kernel(min_cosine=1e-6):
+    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: (
+        renyi.cosine_similarity(u, v) + 1 + min_cosine) / (2 + min_cosine))
 
 
 class SimilarityCostModel(BaseAdversarial):
@@ -28,7 +29,7 @@ class SimilarityCostModel(BaseAdversarial):
             self.batch_size = flags.batch_size
         uniform = torch.ones(1, self.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
-        self.kernel = gaussian_kernel(self.flags.kernel_sigma)
+        self.kernel = cosine_kernel()
 
     def loss_function(self, forward_ret, labels=None):
         x_gen, x_real = forward_ret
@@ -40,10 +41,9 @@ class SimilarityCostModel(BaseAdversarial):
             v_real = self.disc(x_real)
             v_gen = self.disc(x_gen)
 
-        D = lambda x, y: renyi.renyi_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
-                                                               self.flags.alpha, use_full=self.flags.use_full,
-                                                               use_avg=self.flags.use_avg,
-                                                               symmetric=self.flags.symmetric)
+        D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel, self.flags.alpha,
+                                                        use_full=self.flags.use_full, use_avg=self.flags.use_avg,
+                                                        symmetric=self.flags.symmetric)
         if self.flags.unbiased == 0:
             div = D(v_real, v_gen)
         else:
@@ -51,10 +51,8 @@ class SimilarityCostModel(BaseAdversarial):
             x = v_real[self.batch_size:]
             y_prime = v_gen[:self.batch_size]
             y = v_gen[self.batch_size:]
-            if self.flags.unbiased == 1:
-                div = 2 * D(x, y) - D(y, y_prime)
-            else:
-                div = D(x, y) + D(x, y_prime) + D(x_prime, y) + D(x_prime, y_prime) - 2 * D(y, y_prime)
+            div = D(x, y) + D(x, y_prime) + D(x_prime, y) + \
+                D(x_prime, y_prime) - 2 * D(y, y_prime) - 2 * D(x, x_prime)
 
         if self.train_disc():
             loss = -div
