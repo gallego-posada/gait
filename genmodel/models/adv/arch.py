@@ -40,7 +40,6 @@ class Generator(nn.Module):
         super().__init__()
         self.fc = nn.Sequential(
             nn.Linear(z_size, hidden_size),
-            nn.BatchNorm1d(hidden_size),
             nn.ELU(),
             nn.Linear(hidden_size, 28 * 28)
         )
