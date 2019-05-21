@@ -20,8 +20,8 @@ def cosine_kernel(min_cosine=1e-6):
 class SimilarityCostModel(BaseAdversarial):
 
     def __init__(self, flags, *args, **kwargs):
-        generator = Generator(flags.z_size)
-        discriminator = Discriminator(out_size=flags.h_size)
+        generator = Generator(flags.z_size, flags.h_size)
+        discriminator = Discriminator(flags.h_size // 2, out_size=flags.v_size)
         super().__init__(flags, generator, discriminator, *args, **kwargs)
         if flags.unbiased > 0:
             self.batch_size = flags.batch_size // 2

@@ -11,8 +11,8 @@ from ..baseadv import BaseAdversarial
 class AdversarialModel(BaseAdversarial):
 
     def __init__(self, flags, *args, **kwargs):
-        generator = Generator(flags.z_size)
-        discriminator = Discriminator()
+        generator = Generator(flags.z_size, flags.h_size)
+        discriminator = Discriminator(flags.h_size)
         super().__init__(flags, generator, discriminator, *args, **kwargs)
 
     def loss_function(self, forward_ret, labels=None):

@@ -27,6 +27,7 @@ if __name__ == '__main__':
     arg(parser, 'epochs', type=int, default=500, help='no. of training epochs')
     arg(parser, 'h_size', type=int, default=500, help='hidden state dims')
     arg(parser, 'z_size', type=int, default=2, help='latent dims per layer')
+    arg(parser, 'v_size', type=int, default=16, help='dims for vectors to compare in learned costs')
     arg(parser, 'alpha', type=float, default=1, help='alpha')
     arg(parser, 'alpha_initial', type=float, default=1, help='initial value of alpha')
     arg(parser, 'alpha_decay_start', type=int, default=2000, help='step to start alpha decay')
