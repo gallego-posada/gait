@@ -17,11 +17,15 @@ def cosine_kernel(degree=2):
         ((renyi.cosine_similarity(u, v) + 1) / 2) ** degree))
 
 
+def gaussian_kernel(sigma):
+    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.rbf_kernel(u, v, sigmas=[sigma], log=True))
+
+
 class SimilarityCostModel(BaseAdversarial):
 
     def __init__(self, flags, *args, **kwargs):
         generator = Generator(flags.z_size, flags.h_size)
-        discriminator = Discriminator(flags.d_size, out_size=flags.v_size)
+        discriminator = Discriminator(flags.d_size, out_size=flags.v_size, attn=flags.disc_attn)
         super().__init__(flags, generator, discriminator, *args, **kwargs)
         if flags.unbiased:
             self.batch_size = flags.batch_size // 2
@@ -29,7 +33,10 @@ class SimilarityCostModel(BaseAdversarial):
             self.batch_size = flags.batch_size
         uniform = torch.ones(1, self.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
-        self.kernel = cosine_kernel(flags.kernel_degree)
+        if flags.kernel == 'cosine':
+            self.kernel = cosine_kernel(flags.kernel_degree)
+        elif flags.kernel == 'gaussian':
+            self.kernel = gaussian_kernel(flags.kernel_sigma)
 
     def loss_function(self, forward_ret, labels=None):
         x_gen, x_real = forward_ret
@@ -41,9 +48,15 @@ class SimilarityCostModel(BaseAdversarial):
             v_real = self.disc(x_real)
             v_gen = self.disc(x_gen)
 
-        D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel, self.flags.alpha,
-                                                        use_full=self.flags.use_full, use_avg=self.flags.use_avg,
-                                                        symmetric=self.flags.symmetric)
+        if self.flags.kernel == 'cosine':
+            D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel,
+                                                            self.flags.alpha, use_full=self.flags.use_full,
+                                                            use_avg=self.flags.use_avg, symmetric=self.flags.symmetric)
+        elif self.flags.kernel == 'gaussian':
+            D = lambda x, y: renyi.renyi_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
+                                                                   self.flags.alpha, use_full=self.flags.use_full,
+                                                                   use_avg=self.flags.use_avg,
+                                                                   symmetric=self.flags.symmetric)
         if not self.flags.unbiased:
             div = D(v_real, v_gen)
         else:
