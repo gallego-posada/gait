@@ -103,8 +103,6 @@ if __name__ == '__main__':
     if flags.cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = flags.gpus
 
-    flags.save_file = flags.log_dir + '/' + flags.save_file
-
     if flags.model.startswith('fixed.'):
         runner = FixedRunner
     if flags.model.startswith('adv.'):
