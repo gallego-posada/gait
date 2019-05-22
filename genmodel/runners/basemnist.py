@@ -1,6 +1,4 @@
-import gc
 import importlib
-import time
 
 from readers.mnist import MNISTReader
 from pylego import misc, runner
@@ -18,4 +16,4 @@ class MNISTBaseRunner(runner.Runner):
         model_class = misc.get_subclass(importlib.import_module('models.' + self.flags.model), model_class)
         self.model = model_class(self.flags, learning_rate=flags.learning_rate, cuda=flags.cuda,
                                  load_file=flags.load_file, save_every=flags.save_every, save_file=flags.save_file,
-                                 debug=flags.debug)
+                                 debug=flags.debug, max_save_files=999999)

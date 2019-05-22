@@ -26,6 +26,8 @@ class Decoder(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(z_size, hidden_size),
             nn.ELU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ELU(),
             nn.Linear(hidden_size, output_size)
         )
 
@@ -50,11 +52,7 @@ class FixedModel(BaseFixed):
         model = Fixed(28 * 28, flags.h_size, flags.z_size)
         optimizer = optim.Adam(model.parameters(), lr=flags.learning_rate, betas=(flags.beta1, flags.beta2))
         super().__init__(model, flags, optimizer=optimizer, *args, **kwargs)
-        if flags.unbiased:
-            self.batch_size = flags.batch_size // 2
-        else:
-            self.batch_size = flags.batch_size
-        uniform = torch.ones(1, self.batch_size, device=self.device)
+        uniform = torch.ones(1, self.flags.batch_size, device=self.device)
         self.uniform = uniform / uniform.sum()
         if self.flags.kernel == 'gaussian':
             self.sigma_decay = LinearDecay(flags.sigma_decay_start, flags.sigma_decay_end, flags.kernel_initial_sigma,
@@ -75,8 +73,4 @@ class FixedModel(BaseFixed):
         if not self.flags.unbiased:
             return D(x, x_gen)
         else:
-            x_prime = x[:self.batch_size]
-            x = x[self.batch_size:]
-            y_prime = x_gen[:self.batch_size]
-            y = x_gen[self.batch_size:]
-            return D(x, y) + D(x, y_prime) + D(x_prime, y) + D(x_prime, y_prime) - 2 * D(y, y_prime)
+            return 2 * D(x, x_gen) - D(x_gen, x_gen)

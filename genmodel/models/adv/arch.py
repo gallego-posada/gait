@@ -41,6 +41,8 @@ class Generator(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(z_size, hidden_size),
             nn.ELU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ELU(),
             nn.Linear(hidden_size, 28 * 28)
         )
 
