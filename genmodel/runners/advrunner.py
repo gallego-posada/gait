@@ -43,6 +43,6 @@ class AdversarialRunner(MNISTBaseRunner):
         if split == 'test':
             fname = self.flags.log_dir + '/test.png'
         else:
-            fname = self.flags.log_dir + '/val%03d.png' % epoch
+            fname = self.flags.log_dir + '/vis_%03d.png' % self.model.get_train_steps()
         misc.save_comparison_grid(fname, x_full, border_width=0, retain_sequence=True)
         print('* Visualizations saved to', fname)
