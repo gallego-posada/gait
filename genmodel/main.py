@@ -1,4 +1,5 @@
 import argparse
+import glob
 import os
 
 from pylego.misc import add_argument as arg
@@ -18,6 +19,7 @@ if __name__ == '__main__':
     arg(parser, 'data_path', type=str, default='data/MNIST')
     arg(parser, 'logs_path', type=str, default='logs')
     arg(parser, 'force_logs', type=bool, default=False)
+    arg(parser, 'resume_checkpoint', type=bool, default=True)
     arg(parser, 'learning_rate', type=float, default=1e-3, help='Adam learning rate')
     arg(parser, 'lr_decay', type=float, default=0.99, help='learning rate decay')
     arg(parser, 'beta1', type=float, default=0.9, help='Adam beta1')
@@ -84,6 +86,15 @@ if __name__ == '__main__':
         flags.sigma_decay_start = 0
         flags.sigma_decay_end = 1
         flags.kernel_initial_sigma = flags.kernel_sigma
+
+    flags.save_file = flags.log_dir + '/' + flags.save_file
+    if flags.resume_checkpoint:
+        existing = glob.glob(flags.save_file + ".*")
+        pairs = [(f.rsplit('.', 1)[-1], f) for f in existing]
+        pairs = sorted([(int(k), f) for k, f in pairs if k.isnumeric()], reverse=True)
+        if pairs:
+            print('* Checkpoint resuming is enabled, found checkpoint at', pairs[0][1])
+            flags.load_file = pairs[0][1]
 
     print('Arguments:', flags)
     if flags.visualize_only and not flags.load_file:
