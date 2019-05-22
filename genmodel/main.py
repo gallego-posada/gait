@@ -74,7 +74,7 @@ if __name__ == '__main__':
             os.makedirs(flags.log_dir)
             break
         except IOError as e:
-            if flags.force_logs:
+            if flags.force_logs or flags.resume_checkpoint:
                 print('*', flags.log_dir, 'not recreated')
                 break
             else:
@@ -97,8 +97,9 @@ if __name__ == '__main__':
             flags.load_file = pairs[0][1]
 
     print('Arguments:', flags)
-    if flags.visualize_only and not flags.load_file:
-        print('! WARNING: visualize_only without load_file!')
+    if flags.visualize_only and not flags.force_logs:
+        print('! ERROR: visualize_only without force_logs!')
+        raise ValueError
 
     if flags.cuda:
         os.environ['CUDA_VISIBLE_DEVICES'] = flags.gpus
