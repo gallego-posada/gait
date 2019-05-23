@@ -10,20 +10,27 @@ import utils
 
 class Model(nn.Module):
 
-    def __init__(self, size=4, alpha=1, n=100, d=1, sigma=1):
+    def __init__(self, size=4, alpha=1, n=500, d=1, sigma=1, half_empty=True):
         super().__init__()
         self.alpha = alpha
         self.d = d
         self.sigma = sigma
         self.size = size
+        self.half_empty = half_empty
 
         self.locs = nn.Parameter(torch.randn(size, n))
-        self.p = nn.Parameter(torch.randn(1, size // 2))
-        self.q = nn.Parameter(torch.randn(1, size))
+        if half_empty:
+            self.p = nn.Parameter(torch.randn(1, size // 2) * 10.0)
+        else:
+            self.p = nn.Parameter(torch.randn(1, size) * 10.0)
+        self.q = nn.Parameter(torch.randn(1, size) * 10.0)
 
     def forward(self):
         log_K = -(utils.batch_pdist(self.locs, self.locs) / self.sigma) ** self.d
-        p = torch.cat([F.softmax(self.p, dim=1), torch.zeros_like(self.p)], dim=1)
+        if self.half_empty:
+            p = torch.cat([F.softmax(self.p, dim=1), torch.zeros_like(self.p)], dim=1)
+        else:
+            p = F.softmax(self.p, dim=1)
         q = F.softmax(self.q, dim=1)
 
         log_pK = torch.logsumexp(log_K[None, ...] + torch.log(p[:, None, :]), dim=2)
@@ -41,32 +48,33 @@ class Model(nn.Module):
             power_qp = torch.log(q) + (self.alpha - 1) * (rat2[0] - rat2[1])
             loss = 0.5 * (1 / (self.alpha - 1)) * (torch.logsumexp(power_pq, -1) + torch.logsumexp(power_qp, -1))
 
-        return loss, p, q, torch.exp(log_K)
+        return loss  #, p, q, torch.exp(log_K)
 
 
 if __name__ == '__main__':
     # torch.set_default_dtype(torch.float64)
 
     losses = []
-    for size in [1000, 100, 10]:
-        for alpha in [0.5, 1, 2]:
-            for d in [0.5, 1, 2]:
-                print('alpha', alpha, 'd', d, 'size', size)
-                model = Model(alpha=alpha, d=d, size=size).cuda()
-                optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
+    for half_empty in [True, False]:
+        for size in [1000, 100, 10]:
+            for alpha in [0.5, 1, 2]:
+                for d in [0.5, 1, 2]:
+                    local_losses = []
+                    print('alpha', alpha, 'd', d, 'size', size, 'half_empty', half_empty)
+                    model = Model(alpha=alpha, d=d, size=size, half_empty=half_empty).cuda()
+                    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
 
-                for itr in range(5000):
-                    optimizer.zero_grad()
-                    loss, p, q, K = model()
-                    if itr % 250 == 0:
-                        print(loss)
-                    loss.backward()
-                    optimizer.step()
+                    for itr in range(5000):
+                        optimizer.zero_grad()
+                        loss = model()
+                        if itr % 100 == 0:
+                            print(loss)
+                            local_losses.append(loss.item())
+                        loss.backward()
+                        optimizer.step()
 
-                final_loss = loss.item()
-                print('final_loss', final_loss)
-                losses.append((size, alpha, d, final_loss))
-                print()
+                    losses.append((half_empty, size, alpha, d, local_losses))
+                    print()
 
     with open('losses.pk', 'wb') as f:
         pickle.dump(losses, f)
