@@ -46,7 +46,7 @@ def plot(fnames, name):
             linestyle = '-'
         plt.plot(x, y_min, color=colors[ct], label=r'$\alpha=%.1f$, $n=%d$, %s' % (alpha, size, support_str),
                  linestyle=linestyle)
-        plt.fill_between(x, y_min, y_max, color=colors[ct], alpha=0.075, linewidth=0)
+        plt.fill_between(x, y_min, y_max, color=colors[ct], alpha=0.08, linewidth=0)
         ct += 1
         if ct >= len(colors):
             ct = 0
@@ -62,8 +62,8 @@ def plot(fnames, name):
 
     plt.xlabel('Adam iteration')
     plt.ylabel(r'$\mathbb{D}^{\mathbf{K}}_{\alpha}$')
-    plt.show()
-    # plt.savefig('figures/%s.pdf' % name, bbox_inches='tight')
+    # plt.show()
+    plt.savefig('%s.png' % name, bbox_inches='tight', dpi=120)
     plt.close(fig)
 
 
