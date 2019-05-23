@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import argparse
 from pylego.misc import add_argument as arg
 
-from renyi import mink_sim_divergence, renyi_sim_entropy, renyi_sim_divergence, rbf_kernel, \
+from renyi import renyi_sim_divergence, rbf_kernel, \
     renyi_mixture_divergence_stable
 import utils
 if torch.cuda.is_available():
@@ -24,6 +24,14 @@ else:
     device = "cpu"
 
 def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scale=5, autoscale=True):
+    """
+    This experiment is one where we use a fixed number of (moveable) atoms to approximate the target measure.
+    Unfortunately, it doesn't produce particularly nice visualizations, as the moveable atoms must be matched to words
+    in our vocabulary, which tends to be a fairly tricky step that doesn't work nearly as well as would be hoped, as the
+    "closest" word to each atom is often suprisingly unrelated to the text.
+    Instead, see the function after this one, where locations are fixed, which avoids this problem.
+    """
+
     p = torch.tensor(np.array(probs, dtype=np.float32)[None, ...])
     if autoscale:
         dist = utils.batch_pdist(embs, embs, p=2)
@@ -47,9 +55,6 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
         div_item = div.item()
         loss = div
 
-        # if (step - 1) % 100 == 0:
-        #     print(locs[0])
-
         if step % 100 == 0:
             big_locs = torch.cat([embs, locs], 0)
             big_q = torch.cat([torch.zeros_like(p), q], 1)
@@ -57,12 +62,8 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
             print(torch.mean(K).item())
             print(q[0])
             print('Step %d: %0.4f' % (step, div_item))
-            # inp = sorted(list(zip(q[0], words)), reverse=True)
-            # print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
             inp = sorted(list(zip((K@big_q[0]), words)), reverse=True)
             print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
-            # inp = sorted([i.item() for i in q_logits[0]], reverse=True)
-            # print(inp)
         recent.append(loss.item())
         loss.backward()
         q_optimizer.step()
@@ -77,7 +78,7 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
     q = q[0]
     Kq = K @ big_q[0]
     loc_dists = utils.batch_pdist(embs, locs, p=2)
-    # import ipdb; ipdb.set_trace()
+
     closest_words = torch.min(loc_dists, 0)[1]
     closest_words = [words[idx] for idx in closest_words]
     dist = utils.batch_pdist(embs, embs, p=2)
@@ -87,9 +88,6 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
     print('\nInput:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
     inp = sorted(list(zip(Kq, words)), reverse=True)
     print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
-    # inp = sorted(list(zip(q, words)), reverse=True)
-    # print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
-
     inp = sorted(list(zip(q, closest_words)), reverse=True)
     print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
 
@@ -97,9 +95,6 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
 
 def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, alpha=1, lda_max=.1, power=.75):
     p = torch.tensor(np.array(probs, dtype=np.float32)[None, ...])
-    # norm = torch.norm(embs, p=2, dim=1, keepdim=True)
-    # cosine = (embs @ embs.t()) / norm / norm.t()
-    # K = torch.exp(1.0 * (cosine - 1))  # 2 to increase scale
 
     if rbf:
         dist = utils.batch_pdist(embs, embs, p=2)
@@ -115,7 +110,6 @@ def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, a
 
     q_logits = (0*torch.randn_like(p)) + torch.log(p)
     q_logits = q_logits - torch.mean(q_logits)
-    # q_logits = (10 + torch.log(p)).requires_grad_()
 
     p = p.to(device)
     q_logits = q_logits.to(device).detach().requires_grad_()
@@ -127,11 +121,8 @@ def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, a
     while step < 25000 and not converged:
         lda = lda_max*max(min(step/10000., 1.), 0)
         q = F.softmax(q_logits, dim=1)
-        # div = mink_sim_divergence(K, p, q, use_inv=False) + 0.005*renyi_sim_entropy(K, q) #0.005*torch.sum(q * utils.clamp_log(q))
         div = renyi_sim_divergence(K, p, q, alpha=alpha)
-        reg = lda * torch.norm(q, p=power)  #  # +\
-              #torch.sum(torch.sigmoid((q_logits - torch.mean(q_logits))))
-        # div = renyi_sim_divergence(K, p, q) - min(step / 5000., 3.) * torch.clamp(torch.sum(q*utils.clamp_log(q)), 3)
+        reg = lda * torch.norm(q, p=power)
         div_item = div.item()
         loss = div+reg
         loss_item = loss.item()
@@ -145,8 +136,6 @@ def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, a
             print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
             inp = sorted(list(zip((K@q[0]), words)), reverse=True)
             print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
-            # inp = sorted([i.item() for i in q_logits[0]], reverse=True)
-            # print(inp)
         recent.append(loss.item())
         loss.backward()
         q_optimizer.step()
@@ -180,27 +169,16 @@ def wordcloud(probs, words, name, thresh=0.01, hsize=5, vsize=5):
 
     from scipy.misc import imsave
     imsave(name + '.png', cloud)
-    #
-    # # lower max_font_size
-    # plt.clf()
-    # cloud = WordCloud(background_color="white", max_font_size=40, colormap="tab20").generate_from_frequencies(frequencies)
-    # plt.figure()
-    # plt.imshow(cloud, interpolation="bilinear")
-    # plt.axis("off")
-    # plt.show()
-    # plt.savefig(name+"_small.pdf")
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     arg(parser, 'name', type=str, default="", help='name for plots')
-    arg(parser, 'raw', type=bool, default=False, help='Use raw vectors rather than UMAP ones.')
-    arg(parser, 'umap_components', type=int, default=2, help='How many dimensions to reduce to with UMAP.')
+    arg(parser, 'raw', type=bool, default=True, help='Use raw vectors rather than UMAP ones.')
     arg(parser, 'alpha', type=float, default=1., help='Float for alpha in divergence.')
     arg(parser, 'rbf', type=bool, default=False, help='Use RBF rather than cosine similarity.')
     arg(parser, 'cosine_power', type=float, default=1, help='Power to raise cosine similarities to.')
     arg(parser, 'power', type=float, default=.75, help='Power for p-norm sparsity constraint.')
-    arg(parser, 'rbf_sigma', type=float, default=1, help='Power to raise cosine similarities to.')
+    arg(parser, 'rbf_sigma', type=float, default=1, help='Scale for RBF kernel, if used.')
     arg(parser, 'lda', type=float, default=.01, help='Upper limit for sparsity objective.')
 
     flags = parser.parse_args()
@@ -222,7 +200,6 @@ if __name__ == '__main__':
         if not os.path.exists("./figs/" + flags.name):
             os.mkdir("./figs/" + flags.name)
 
-
     fnames = sorted(glob.glob('data/EnglishProcessed/*.txt'))
     for i, article_fname in enumerate(fnames[5:10], 5):
         print(article_fname)
@@ -242,9 +219,6 @@ if __name__ == '__main__':
         inp = sorted(list(zip(probs, words)), reverse=True)
         print('\nInput:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
         print()
-
-        # Kq, Kp, q, locs, closest_words = get_summary_movable_locs(words, probs, embs, k=10, all_embs=word_embs, all_words=all_words)
-        # wordcloud(Kq, words, "figs/floating_cloud_{}".format(i-5), thresh=0.01, vsize=2.5)
 
         Kq, Kp, q = print_summary(words, probs, embs, rbf=flags.rbf, cosine_power=flags.cosine_power, power=flags.power,
                                   rbf_sigma=flags.rbf_sigma, alpha=flags.alpha, lda_max=flags.lda)
