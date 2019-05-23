@@ -2,6 +2,7 @@ from collections import deque
 import glob
 import pickle
 import sys
+import os
 sys.path.append('..')
 
 from matplotlib import pyplot as plt
@@ -11,6 +12,8 @@ from torch import nn, optim
 from torch.nn import functional as F
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+import argparse
+from pylego.misc import add_argument as arg
 
 from renyi import mink_sim_divergence, renyi_sim_entropy, renyi_sim_divergence, rbf_kernel, \
     renyi_mixture_divergence_stable
@@ -20,8 +23,7 @@ if torch.cuda.is_available():
 else:
     device = "cpu"
 
-
-def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scale=.1, autoscale=True):
+def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scale=5, autoscale=True):
     p = torch.tensor(np.array(probs, dtype=np.float32)[None, ...])
     if autoscale:
         dist = utils.batch_pdist(embs, embs, p=2)
@@ -53,6 +55,7 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
             big_q = torch.cat([torch.zeros_like(p), q], 1)
             K = rbf_kernel(big_locs, big_locs, sigmas=[scale])
             print(torch.mean(K).item())
+            print(q[0])
             print('Step %d: %0.4f' % (step, div_item))
             # inp = sorted(list(zip(q[0], words)), reverse=True)
             # print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
@@ -92,21 +95,26 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
 
     return Kq, Kp, q, locs, closest_words
 
-def print_summary(words, probs, embs, scale=200):
+def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, alpha=1, lda_max=.1, power=.75):
     p = torch.tensor(np.array(probs, dtype=np.float32)[None, ...])
     # norm = torch.norm(embs, p=2, dim=1, keepdim=True)
     # cosine = (embs @ embs.t()) / norm / norm.t()
     # K = torch.exp(1.0 * (cosine - 1))  # 2 to increase scale
 
-    dist = utils.batch_pdist(embs, embs, p=2)
-    K = torch.exp(-scale*dist**2)
+    if rbf:
+        dist = utils.batch_pdist(embs, embs, p=2)
+        K = torch.exp(dist**2/rbf_sigma**2)
+    else:
+        K = (utils.batch_cosine_similarity(embs, embs) + 1)/2
+        K = K**cosine_power
     plt.imshow(K)
     plt.colorbar()
     plt.show()
 
     Kp = K @ p[0]
 
-    q_logits = (0*torch.randn_like(p))
+    q_logits = (0*torch.randn_like(p)) + torch.log(p)
+    q_logits = q_logits - torch.mean(q_logits)
     # q_logits = (10 + torch.log(p)).requires_grad_()
 
     p = p.to(device)
@@ -116,12 +124,12 @@ def print_summary(words, probs, embs, scale=200):
     converged = False
     recent = deque(maxlen=1000)
     step = 0
-    while step < 100000 and not converged:
-        lda = 0.1*max(min(step/10000., 1.), 0)
+    while step < 25000 and not converged:
+        lda = lda_max*max(min(step/10000., 1.), 0)
         q = F.softmax(q_logits, dim=1)
         # div = mink_sim_divergence(K, p, q, use_inv=False) + 0.005*renyi_sim_entropy(K, q) #0.005*torch.sum(q * utils.clamp_log(q))
-        div = renyi_sim_divergence(K, p, q)
-        reg = lda * torch.norm(q, p=0.5)#  # +\
+        div = renyi_sim_divergence(K, p, q, alpha=alpha)
+        reg = lda * torch.norm(q, p=power)  #  # +\
               #torch.sum(torch.sigmoid((q_logits - torch.mean(q_logits))))
         # div = renyi_sim_divergence(K, p, q) - min(step / 5000., 3.) * torch.clamp(torch.sum(q*utils.clamp_log(q)), 3)
         div_item = div.item()
@@ -158,16 +166,20 @@ def print_summary(words, probs, embs, scale=200):
     return Kq, Kp, q
 
 
-def wordcloud(probs, words, name, thresh=0.01, vsize=5):
+def wordcloud(probs, words, name, thresh=0.01, hsize=5, vsize=5):
     frequencies = {w.upper():p.item() for w, p in zip(words, probs) if p>thresh}
-    cloud = WordCloud(width=500, height=int(vsize*100), background_color="white", colormap="tab20").generate_from_frequencies(frequencies)
+    cloud = WordCloud(height=int(vsize*400), width=int(hsize*400),
+                      background_color="white", colormap="tab20").generate_from_frequencies(frequencies)
 
     plt.clf()
-    plt.figure(figsize=(5, vsize))
+    plt.figure(figsize=(hsize, vsize))
     plt.imshow(cloud, interpolation='bilinear', aspect="equal")
     plt.axis("off")
     plt.tight_layout()
-    plt.savefig(name+".pdf", figsize=(5, vsize), dpi=100)
+    plt.savefig(name+".pdf", figsize=(5, vsize), dpi=400)
+
+    from scipy.misc import imsave
+    imsave(name + '.png', cloud)
     #
     # # lower max_font_size
     # plt.clf()
@@ -180,16 +192,40 @@ def wordcloud(probs, words, name, thresh=0.01, vsize=5):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    arg(parser, 'name', type=str, default="", help='name for plots')
+    arg(parser, 'raw', type=bool, default=False, help='Use raw vectors rather than UMAP ones.')
+    arg(parser, 'umap_components', type=int, default=2, help='How many dimensions to reduce to with UMAP.')
+    arg(parser, 'alpha', type=float, default=1., help='Float for alpha in divergence.')
+    arg(parser, 'rbf', type=bool, default=False, help='Use RBF rather than cosine similarity.')
+    arg(parser, 'cosine_power', type=float, default=1, help='Power to raise cosine similarities to.')
+    arg(parser, 'power', type=float, default=.75, help='Power for p-norm sparsity constraint.')
+    arg(parser, 'rbf_sigma', type=float, default=1, help='Power to raise cosine similarities to.')
+    arg(parser, 'lda', type=float, default=.01, help='Upper limit for sparsity objective.')
+
+    flags = parser.parse_args()
     with open('data/news_words', 'rb') as f:
         all_words = pickle.load(f)
     with open('data/tfidf', 'rb') as f:
         tdidf_articles = pickle.load(f)
-    with open('data/transformed_vectors', 'rb') as f:
-        word_embs = pickle.load(f)
+
+    if flags.raw:
+        with open('data/news_vectors', 'rb') as f:
+            word_embs = pickle.load(f)
+    else:
+        with open('data/transformed_vectors', 'rb') as f:
+            word_embs = pickle.load(f)
     word_embs = torch.tensor(word_embs, dtype=torch.float32)
+
+    if flags.name != "":
+        flags.name = flags.name + "/"
+        if not os.path.exists("./figs/" + flags.name):
+            os.mkdir("./figs/" + flags.name)
+
 
     fnames = sorted(glob.glob('data/EnglishProcessed/*.txt'))
     for i, article_fname in enumerate(fnames[5:10], 5):
+        print(article_fname)
         feature_index = tdidf_articles[i, :].nonzero()[1]
         if not feature_index.size:
             continue
@@ -200,22 +236,25 @@ if __name__ == '__main__':
         print('-----')
         words = [all_words[x] for x in feature_index]
         probs = [tdidf_articles[i, x] for x in feature_index]
-        wordcloud(probs, words, "figs/cloud_{}_tfidf".format(i-5), 0)
+        wordcloud(probs, words, "figs/{}cloud_{}_tfidf".format(flags.name, i-5), 0, hsize=5, vsize=2)
         assert np.isclose(np.sum(probs), 1.0)
         embs = torch.stack([word_embs[x] for x in feature_index])
         inp = sorted(list(zip(probs, words)), reverse=True)
         print('\nInput:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
         print()
 
-        Kq, Kp, q = get_summary_movable_locs(words, probs, embs, k=10, all_embs=word_embs, all_words=all_words)
+        # Kq, Kp, q, locs, closest_words = get_summary_movable_locs(words, probs, embs, k=10, all_embs=word_embs, all_words=all_words)
+        # wordcloud(Kq, words, "figs/floating_cloud_{}".format(i-5), thresh=0.01, vsize=2.5)
 
-        Kq, Kp, q = print_summary(words, probs, embs)
+        Kq, Kp, q = print_summary(words, probs, embs, rbf=flags.rbf, cosine_power=flags.cosine_power, power=flags.power,
+                                  rbf_sigma=flags.rbf_sigma, alpha=flags.alpha, lda_max=flags.lda)
 
         count = torch.sum(q > 0.01).int().item()
         reduced = inp[:count]
-        wordcloud([p for p, w in reduced], [w for p, w in reduced], "figs/cloud_{}_tfidf_top_{}".format(i-5, count), 0)
+        wordcloud([p for p, w in reduced], [w for p, w in reduced],
+                  "figs/{}cloud_{}_tfidf_top_{}".format(flags.name, i-5, count), 0, hsize=2.5, vsize=2)
 
-        wordcloud(q, words, "figs/cloud_{}".format(i-5), thresh=0.01, vsize=2.5)
+        wordcloud(q, words, "figs/{}cloud_{}".format(flags.name, i-5), thresh=0.01, hsize=2.5, vsize=2)
 
         bar_indices = sorted(list(zip(Kp, range(len(feature_index)))), reverse=True)
         bar_data = list(zip(*[(i, p.item() * 100) for (i, (p, w)) in enumerate(bar_indices)]))
