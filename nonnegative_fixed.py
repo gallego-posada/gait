@@ -64,7 +64,7 @@ if __name__ == '__main__':
                     model = Model(alpha=alpha, size=size, half_empty=half_empty, n=n).cuda()
                     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
 
-                    for itr in range(5000):
+                    for itr in range(10000):
                         optimizer.zero_grad()
                         loss = model()
                         if itr % 100 == 0:
@@ -76,5 +76,5 @@ if __name__ == '__main__':
                     losses.append((half_empty, size, alpha, n, local_losses))
                     print()
 
-    with open('losses_fixed.pk', 'wb') as f:
+    with open('losses_fixed_%d.pk' % np.random.randint(1000), 'wb') as f:
         pickle.dump(losses, f)
