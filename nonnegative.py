@@ -52,10 +52,10 @@ class Model(nn.Module):
 
 
 if __name__ == '__main__':
-    # torch.set_default_dtype(torch.float64)
+    torch.set_default_dtype(torch.float64)
 
     losses = []
-    for n in [100, 3]:
+    for n in [100, 5]:
         for half_empty in [False, True]:
             for size in [1000, 10]:
                 for alpha in [0.5, 1, 2]:
@@ -64,7 +64,7 @@ if __name__ == '__main__':
                     model = Model(alpha=alpha, size=size, half_empty=half_empty, n=n).cuda()
                     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999))
 
-                    for itr in range(10000):
+                    for itr in range(6000):
                         optimizer.zero_grad()
                         loss = model()
                         if itr % 100 == 0:
