@@ -27,9 +27,9 @@ if __name__ == '__main__':
     arg(parser, 'grad_norm', type=float, default=-1, help='gradient norm clipping (-1 to disable)')
     arg(parser, 'batch_size', type=int, default=200, help='batch size')
     arg(parser, 'epochs', type=int, default=350, help='no. of training epochs')
-    arg(parser, 'h_size', type=int, default=500, help='hidden state dims')
+    arg(parser, 'h_size', type=int, default=384, help='hidden state dims')
     arg(parser, 'z_size', type=int, default=2, help='latent dims per layer')
-    arg(parser, 'd_size', type=int, default=500, help='disc hidden state dims (-1 for linear disc)')
+    arg(parser, 'd_size', type=int, default=384, help='disc hidden state dims (-1 for linear disc)')
     arg(parser, 'v_size', type=int, default=16,
         help='dims for vectors to compare in learned costs (-1 for no projection)')
     arg(parser, 'disc_attn', type=bool, default=False, help='weigh input pixels in discriminator')

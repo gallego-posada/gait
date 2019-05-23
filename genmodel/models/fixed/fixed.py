@@ -25,7 +25,11 @@ class Decoder(nn.Module):
         super().__init__()
         self.fc = nn.Sequential(
             nn.Linear(z_size, hidden_size),
-            nn.ELU(),
+            nn.BatchNorm1d(hidden_size),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.BatchNorm1d(hidden_size),
+            nn.LeakyReLU(),
             nn.Linear(hidden_size, output_size)
         )
 
