@@ -18,7 +18,7 @@ class Model(nn.Module):
         self.size = size
         self.half_empty = half_empty
 
-        self.locs = nn.Parameter(torch.randn(size, n))
+        self.locs = nn.Parameter(torch.randn(size, n), requires_grad=False)
         if half_empty:
             self.p = nn.Parameter(torch.randn(1, size // 2) * 5.0)
         else:
@@ -76,5 +76,5 @@ if __name__ == '__main__':
                     losses.append((half_empty, size, alpha, n, local_losses))
                     print()
 
-    with open('losses.pk', 'wb') as f:
+    with open('losses_fixed.pk', 'wb') as f:
         pickle.dump(losses, f)
