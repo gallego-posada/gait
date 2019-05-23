@@ -20,51 +20,54 @@ def plot(fnames, name):
         for half_empty, size, alpha, n, local_losses in data:
             plots[(half_empty, size, alpha, n)].append(local_losses)
 
-    x = (np.arange(1, 101) * 100).astype(np.int)
-
     for k, v in plots.items():
         half_empty, size, alpha, n = k
-        if n == 3:
-            continue
 
-    fig = plt.figure(figsize=(8, 4.75))
-    ax = fig.gca()
-    ct = 0
-    for k, v in plots.items():
-        half_empty, size, alpha, n = k
-        if n == 3:
-            continue
-        v = np.array(v)
-        y_min = np.min(v, axis=0)
-        y_max = np.max(v, axis=0)
+    for n in [5, 100]:
+        fig = plt.figure(figsize=(4.5, 3.1))
+        ax = fig.gca()
+        ct = 0
+        for k, v in plots.items():
+            half_empty, size, alpha, n_ = k
+            if n != n_:
+                continue
+            v = np.array(v)
+            x = (np.arange(1, 1 + v.shape[1]) * 100).astype(np.int)
+            if ct == 0:
+                plt.plot(x, np.zeros(x.shape), color='k', alpha=0.5,linewidth=0.5)
+            y_min = np.min(v, axis=0)
+            y_max = np.max(v, axis=0)
 
-        if half_empty:
-            support_str = 'H.S.'
-            linestyle = '--'
+            if half_empty:
+                support_str = 'H.S.'
+                linestyle = '--'
+            else:
+                support_str = 'F.S.'
+                linestyle = '-'
+            plt.plot(x, y_min, color=colors[ct], label=r'$\alpha=%.1f$, $n=%d$, %s' % (alpha, size, support_str),
+                    linestyle=linestyle)
+            plt.fill_between(x, y_min, y_max, color=colors[ct], alpha=0.08, linewidth=0)
+            ct += 1
+            if ct >= len(colors):
+                ct = 0
+
+        ax.set_xlim([100, 10000])
+        if n == 5:
+            ax.set_ylim([-0.5, 5.0])
         else:
-            support_str = 'F.S.'
-            linestyle = '-'
-        plt.plot(x, y_min, color=colors[ct], label=r'$\alpha=%.1f$, $n=%d$, %s' % (alpha, size, support_str),
-                 linestyle=linestyle)
-        plt.fill_between(x, y_min, y_max, color=colors[ct], alpha=0.08, linewidth=0)
-        ct += 1
-        if ct >= len(colors):
-            ct = 0
-    plt.plot(x, np.zeros(x.shape), color='k', alpha=0.75,linewidth=0.5)
+            ax.set_ylim([-1, 15.0])
 
-    ax.set_xlim([100, 10000])
-    ax.set_ylim([-1, 15.0])
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
-    box = ax.get_position()
-    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+        if 'nofixed' in name:
+            ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize='small')
 
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize='small')
-
-    plt.xlabel('Adam iteration')
-    plt.ylabel(r'$\mathbb{D}^{\mathbf{K}}_{\alpha}$')
-    # plt.show()
-    plt.savefig('%s.png' % name, bbox_inches='tight', dpi=120)
-    plt.close(fig)
+        plt.xlabel('Adam iteration')
+        plt.ylabel(r'$\mathbb{D}^{\mathbf{K}}_{\alpha}$')
+        # plt.show()
+        plt.savefig('%s_%d.png' % (name, n), bbox_inches='tight', dpi=120)
+        plt.close(fig)
 
 
 if __name__ == '__main__':
