@@ -93,6 +93,7 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
 
     return Kq, Kp, q, locs, closest_words
 
+
 def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, alpha=1, lda_max=.1, power=.75):
     p = torch.tensor(np.array(probs, dtype=np.float32)[None, ...])
 
@@ -159,7 +160,6 @@ def wordcloud(probs, words, name, thresh=0.01, hsize=5, vsize=5):
     frequencies = {w.upper():p.item() for w, p in zip(words, probs) if p>thresh}
     cloud = WordCloud(height=int(vsize*400), width=int(hsize*400),
                       background_color="white", colormap="tab20").generate_from_frequencies(frequencies)
-
     plt.clf()
     plt.figure(figsize=(hsize, vsize))
     plt.imshow(cloud, interpolation='bilinear', aspect="equal")
@@ -201,7 +201,7 @@ if __name__ == '__main__':
             os.mkdir("./figs/" + flags.name)
 
     fnames = sorted(glob.glob('data/EnglishProcessed/*.txt'))
-    for i, article_fname in enumerate(fnames[5:10], 5):
+    for i, article_fname in enumerate(fnames[5:10], 1):
         print(article_fname)
         feature_index = tdidf_articles[i, :].nonzero()[1]
         if not feature_index.size:
