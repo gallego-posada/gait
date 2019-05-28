@@ -26,8 +26,8 @@ class Model(nn.Module):
         self.q = nn.Parameter(torch.randn(1, size) * 5.0)
 
     def forward(self):
-        # log_K = -(utils.batch_pdist(self.locs, self.locs) / self.sigma) ** self.d
-        log_K = -2.0 * torch.log(1 + utils.batch_pdist(self.locs, self.locs))
+        log_K = -(utils.batch_pdist(self.locs, self.locs) / self.sigma) ** self.d  # RBF
+        # log_K = -2.0 * torch.log(1 + utils.batch_pdist(self.locs, self.locs))  # polynomial
         if self.half_empty:
             p = torch.cat([F.softmax(self.p, dim=1), torch.zeros_like(self.p)], dim=1)
         else:

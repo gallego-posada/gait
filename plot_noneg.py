@@ -51,11 +51,23 @@ def plot(fnames, name):
             if ct >= len(colors):
                 ct = 0
 
+        # RBF
         ax.set_xlim([100, 10000])
         if n == 5:
             ax.set_ylim([-0.5, 5.0])
         else:
             ax.set_ylim([-1, 15.0])
+
+        # # polynomial
+        # if 'nofixed' in name:
+        #     ax.set_xlim([100, 2500])
+        # else:
+        #     ax.set_xlim([100, 7000])
+
+        # if n == 5:
+        #     ax.set_ylim([-0.5, 3.0])
+        # else:
+        #     ax.set_ylim([-0.5, 5.0])
 
         box = ax.get_position()
         ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
