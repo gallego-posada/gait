@@ -1,2 +1,2 @@
-# metric_it
-Information Theory on Metric Spaces
+# gear  
+Code for the paper *GEAR: Geometry Aware Rényi Information*
