@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 """
+
+Adatation of the code by Gabriel Peyre originally located at:
+https://github.com/gpeyre/SinkhornAutoDiff/blob/master/sinkhorn_pointcloud.py
+
 sinkhorn_pointcloud.py
 
 Discrete OT : Sinkhorn algorithm for point cloud marginals.
