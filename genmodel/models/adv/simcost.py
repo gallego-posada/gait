@@ -51,17 +51,13 @@ class SimilarityCostModel(BaseAdversarial):
             v_real = self.disc(x_real)
             v_gen = self.disc(x_gen)
 
-        if self.flags.kernel == 'cosine':
-            D = lambda x, y: renyi.renyi_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel,
-                                                            self.flags.alpha, use_full=self.flags.use_full,
-                                                            use_avg=self.flags.use_avg, symmetric=self.flags.symmetric)
-        elif self.flags.kernel == 'gaussian':
-            sigma = self.sigma_decay.get_y(self.get_train_steps())
-            self.kernel = gaussian_kernel(sigma)
-            D = lambda x, y: renyi.renyi_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
-                                                                   self.flags.alpha, use_full=self.flags.use_full,
-                                                                   use_avg=self.flags.use_avg,
-                                                                   symmetric=self.flags.symmetric)
+        sigma = self.sigma_decay.get_y(self.get_train_steps())
+        self.kernel = gaussian_kernel(sigma)
+        D = lambda x, y: renyi.breg_mixture_divergence(self.uniform, x,
+                                                       self.uniform, y,
+                                                       self.kernel,
+                                                       self.flags.alpha,
+                                                       symmetric=self.flags.symmetric)
         if not self.flags.unbiased:
             div = D(v_real, v_gen)
         else:

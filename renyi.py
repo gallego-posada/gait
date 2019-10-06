@@ -89,8 +89,66 @@ def sim_cross_entropy(K, p, q, alpha=1, normalize=False):
     
     return res.transpose(0, 1)
 
-    
-    
+
+def breg_sim_divergence(K, p, q, symmetric=False):
+    """
+    Compute similarity sensitive Bregman divergence of between a pair of (batches of)
+    distribution(s) p and q over an alphabet of n elements.    Inputs:
+       p [batch_size x n tensor] : Probability distributions over n elements
+       q [batch_size x n tensor] : Probability distributions over n elements
+       K [n x n tensor or callable] : Positive semi-definite similarity matrix or function
+       symmetric [boolean]: Use symmetrized Bregman divergence.
+    Output:
+       div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q
+    """
+    if callable(K):
+        pK = K(p)
+        qK = K(q)
+    else:
+        pK = p @ K
+        qK = q @ K
+    rat1 = (pK, qK)
+    if callable(K):  # we're dealing with an image
+        sum_dims = (-2, -1)
+    else:
+        sum_dims = -1
+    t1 = (p * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(sum_dims)
+    t2 = (q * (rat1[0] / rat1[1])).sum(sum_dims)
+    if symmetric:
+        t3 = (q * (torch.log(rat1[1]) - torch.log(rat1[0]))).sum(sum_dims)
+        t4 = (p * (rat1[1] / rat1[0])).sum(sum_dims)
+        return (2 + t1 - t2 + t3 - t4)/2.
+
+    else:
+        return 1 + t1 - t2
+
+
+def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=True):
+    """
+    Compute similarity sensitive Renyi divergence of between a pair of empirical distributions
+    p and q with supports Y and X, respectively
+    Inputs:
+        p [1 x n tensor] : Probability distribution over n elements
+        Y [n x d tensor] : Locations of the atoms of the measure p
+        q [1 x m tensor] : Probability distribution over m elements
+        X [n x d tensor] : Locations of the atoms of the measure q
+        kernel [callable] : Function to compute the kernel matrix
+        symmetric [boolean] : Use the symmetric version of the divergence
+    Output:
+        div [1 x 1 tensor] similarity sensitive divergence of between mu and nu
+    """
+
+    Kyy = kernel(Y, Y)
+    Kyx = kernel(Y, X)
+    Kxx = kernel(X, X)
+
+    f_p = torch.cat([p, torch.zeros_like(q)], -1)
+    f_q = torch.cat([torch.zeros_like(p), q], -1)
+    f_K = torch.cat([torch.cat([Kyy, Kyx], 1), torch.cat([Kyy.t(), Kxx], 1)], 0)
+
+    return breg_sim_divergence(f_K, f_p, f_q, symmetric=symmetric)
+
+
 def mink_sim_divergence(K, p, q, alpha=2, use_inv=False, use_avg=False):
     """
     Compute similarity sensitive Minkowski divergence of between a pair of (batches of)
