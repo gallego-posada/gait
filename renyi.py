@@ -91,6 +91,7 @@ def sim_cross_entropy(K, p, q, alpha=1, normalize=False):
 
 
 def breg_sim_divergence(K, p, q, symmetric=False):
+    # NOTE: if you make changes in this function, do them in *_stable function under this as well.
     """
     Compute similarity sensitive Bregman divergence of between a pair of (batches of)
     distribution(s) p and q over an alphabet of n elements.    Inputs:
@@ -123,7 +124,40 @@ def breg_sim_divergence(K, p, q, symmetric=False):
         return 1 + t1 - t2
 
 
+def breg_sim_divergence_stable(log_K, p, q, symmetric=False):
+    """
+    Compute similarity sensitive Bregman divergence of between a pair of (batches of)
+    distribution(s) p and q over an alphabet of n elements.    Inputs:
+       p [batch_size x n tensor] : Probability distributions over n elements
+       q [batch_size x n tensor] : Probability distributions over n elements
+       log_K [n x n tensor or callable] : Log of positive semi-definite similarity matrix or function
+       symmetric [boolean]: Use symmetrized Bregman divergence.
+    Output:
+       div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q
+    """
+    if callable(log_K):
+        log_pK = log_K(p)
+        log_qK = log_K(q)
+    else:
+        log_pK = torch.logsumexp(log_K[None, ...] + torch.log(p[:, None, :]), dim=2)
+        log_qK = torch.logsumexp(log_K[None, ...] + torch.log(q[:, None, :]), dim=2)
+    rat1 = (log_pK, log_qK)
+    if callable(log_K):  # we're dealing with an image
+        sum_dims = (-2, -1)
+    else:
+        sum_dims = -1
+    t1 = (p * (rat1[0] - rat1[1])).sum(sum_dims)
+    t2 = (q * torch.exp(rat1[0] - rat1[1])).sum(sum_dims)
+    if symmetric:
+        t3 = (q * (rat1[1] - rat1[0])).sum(sum_dims)
+        t4 = (p * torch.exp(rat1[1] - rat1[0])).sum(sum_dims)
+        return (2 + t1 - t2 + t3 - t4)/2.
+    else:
+        return 1 + t1 - t2
+
+
 def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=True):
+    # NOTE: if you make changes in this function, do them in *_stable function under this as well.
     """
     Compute similarity sensitive Renyi divergence of between a pair of empirical distributions
     p and q with supports Y and X, respectively
@@ -147,6 +181,32 @@ def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=True):
     f_K = torch.cat([torch.cat([Kyy, Kyx], 1), torch.cat([Kyy.t(), Kxx], 1)], 0)
 
     return breg_sim_divergence(f_K, f_p, f_q, symmetric=symmetric)
+
+
+def breg_mixture_divergence_stable(p, Y, q, X, log_kernel, symmetric=True):
+    """
+    Compute similarity sensitive Renyi divergence of between a pair of empirical distributions
+    p and q with supports Y and X, respectively
+    Inputs:
+        p [1 x n tensor] : Probability distribution over n elements
+        Y [n x d tensor] : Locations of the atoms of the measure p
+        q [1 x m tensor] : Probability distribution over m elements
+        X [n x d tensor] : Locations of the atoms of the measure q
+        log_kernel [callable] : Function to compute the log kernel matrix
+        symmetric [boolean] : Use the symmetric version of the divergence
+    Output:
+        div [1 x 1 tensor] similarity sensitive divergence of between mu and nu
+    """
+
+    log_Kyy = log_kernel(Y, Y)
+    log_Kyx = log_kernel(Y, X)
+    log_Kxx = log_kernel(X, X)
+
+    f_p = torch.cat([p, torch.zeros_like(q)], -1)
+    f_q = torch.cat([torch.zeros_like(p), q], -1)
+    f_log_K = torch.cat([torch.cat([log_Kyy, log_Kyx], 1), torch.cat([log_Kyy.t(), log_Kxx], 1)], 0)
+
+    return breg_sim_divergence_stable(f_log_K, f_p, f_q, symmetric=symmetric)
 
 
 def mink_sim_divergence(K, p, q, alpha=2, use_inv=False, use_avg=False):
