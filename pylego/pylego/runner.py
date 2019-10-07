@@ -14,8 +14,8 @@ class Runner(ABC):
     Represents a runner that solves a particular task.
     """
 
-    def __init__(self, reader, batch_size, epochs, log_dir, log_keys=None, threads=1, print_every=50,
-                 visualize_every=-1, max_batches=-1, seed=0):
+    def __init__(self, reader, batch_size, epochs, log_dir, threads=1, print_every=50, visualize_every=-1,
+                 max_batches=-1, seed=0):
         self.reader = reader
         self.batch_size = batch_size
         self.epochs = epochs
@@ -24,10 +24,6 @@ class Runner(ABC):
         self.max_batches = max_batches
         self.model = None
         self.epoch_reports = []
-        if log_keys:
-            self.log_keys = set(log_keys)
-        else:
-            self.log_keys = set()
         self.threads = threads
 
         torch.manual_seed(seed)
@@ -43,14 +39,16 @@ class Runner(ABC):
         pass
 
     def report_str(self, report):
-        """Format the report in a printable string."""
+        """Format the report in a printable string. Only keys under 'losses' and 'print_only' are included."""
         ret = []
         for k, v in report.items():
-            ret.append('%s: %.3f' % (k, v))
+            parent, name = k.rsplit('/', 1)
+            if parent == 'losses' or parent == 'print_only':
+                ret.append('%s: %.3f' % (name, v))
         return ' '.join(ret)
 
     def print_report(self, epoch, report, step=None):
-        """Print the report for a batch if step is given, else print the epoch report."""
+        """Use the report to print the losses for a batch if step is given, else print the epoch losses."""
         if report:
             report_str = self.report_str(report)
         else:
@@ -82,10 +80,10 @@ class Runner(ABC):
         return epoch_report
 
     def log_report(self, report, train_steps, prefix=""):
-        """Log the given report to TensorBoard summary."""
+        """Log the given report to TensorBoard summary. Keys under 'print_only' are ignored."""
         if report is not None:
             for k, v in report.items():
-                if k in self.log_keys:
+                if k.rsplit('/', 1)[0] != 'print_only':
                     new_key = prefix + k
                     self.summary_writer.add_scalar(new_key, v, global_step=train_steps)
 
@@ -111,18 +109,24 @@ class Runner(ABC):
         pass
 
     def clean_report(self, ret_report):
-        if not ret_report:
-            report = collections.OrderedDict()
-        elif not isinstance(ret_report, collections.OrderedDict):
-            report = collections.OrderedDict()
-            for k in sorted(ret_report.keys()):
-                report[k] = ret_report[k]
-        else:
-            report = ret_report
-        for k, v in report.items():
-            if isinstance(v, torch.Tensor):
-                report[k] = v.item()
-        return report
+        """Returns an OrderedDict with keys without a hierarchy pulled under 'losses'. Tensor values are converted to
+        native scalars."""
+        report_items_cleaned = []
+        if ret_report:
+            for k, v in ret_report.items():
+                if '/' not in k:
+                    new_k = 'losses/' + k
+                else:
+                    new_k = k
+                if isinstance(v, torch.Tensor):
+                    new_v = v.item()
+                else:
+                    new_v = v
+                report_items_cleaned.append((new_k, new_v))
+            if not isinstance(ret_report, collections.OrderedDict):
+                report_items_cleaned.sort()
+
+        return collections.OrderedDict(report_items_cleaned)
 
     def run_epoch(self, epoch, split, train=False, log=True):
         """Iterates the epoch data for a specific split."""
@@ -136,7 +140,7 @@ class Runner(ABC):
                                                            max_batches=self.max_batches)):
 
             report = self.clean_report(self.run_batch(batch, train=train))
-            report['time_'] = time.time() - timestamp
+            report['print_only/time_'] = time.time() - timestamp
             if train:
                 self.log_train_report(report, self.model.get_train_steps())
             self.epoch_reports.append(report)

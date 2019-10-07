@@ -1,10 +1,20 @@
 from abc import ABC, abstractmethod
-import contextlib
 import glob
 import pathlib
+import sys
 
 import torch
-from torch import autograd, nn, optim
+from torch import nn, optim
+
+
+if sys.version_info.minor < 7:
+    class nullcontext():
+        def __enter__(self):
+            return None
+        def __exit__(self, *excinfo):
+            pass
+else:
+    from contextlib import nullcontext
 
 
 class Model(ABC):
@@ -17,7 +27,7 @@ class Model(ABC):
         self.max_save_files = max_save_files
         self.debug = debug
         if debug:
-            self.debug_context = None
+            torch.set_anomaly_enabled(True)
 
         if isinstance(optimizer, str):
             if optimizer == 'adam':
@@ -84,7 +94,7 @@ class Model(ABC):
         if not isinstance(data, list) and not isinstance(data, tuple):
             data = [data]
         if self.is_training():
-            context = contextlib.nullcontext()
+            context = nullcontext()
         else:
             context = torch.no_grad()
         with context:
@@ -98,15 +108,10 @@ class Model(ABC):
         if not isinstance(data, list) and not isinstance(data, tuple):
             data = [data]
         if self.is_training():
-            context = contextlib.nullcontext()
+            context = nullcontext()
         else:
             context = torch.no_grad()
-        if self.debug:
-            debug_context = autograd.detect_anomaly()
-            self.debug_context = debug_context
-        else:
-            debug_context = contextlib.nullcontext()
-        with context, debug_context:
+        with context:
             if not visualize:
                 return self.model(*data)
             else:
@@ -130,12 +135,7 @@ class Model(ABC):
     def train(self, loss, clip_grad_norm=None):
         assert self.is_training()
         self.optimizer.zero_grad()
-        if self.debug:
-            debug_context = self.debug_context
-        else:
-            debug_context = contextlib.nullcontext()
-        with debug_context:
-            loss.backward()
+        loss.backward()
         if clip_grad_norm is not None:
             nn.utils.clip_grad_norm_(self.model.parameters(), clip_grad_norm)
         self.optimizer.step()
