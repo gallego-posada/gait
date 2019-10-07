@@ -71,7 +71,7 @@ class SimilarityCostModel(BaseAdversarial):
                 D(x_prime, y_prime) - 2 * D(y, y_prime) - 2 * D(x, x_prime)
 
         if self.train_disc():
-            loss = -div + 10.0 * self.gradient_penalty(x_real, x_gen)
+            loss = -div + self.flags.gp * self.gradient_penalty(x_real, x_gen)
             self.d_loss = loss.item()
         else:
             loss = div

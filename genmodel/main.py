@@ -37,6 +37,7 @@ if __name__ == '__main__':
     arg(parser, 'symmetric', type=bool, default=False, help='symmetric in mixture divergence')
     arg(parser, 'unbiased', type=bool, default=False, help='unbiased gradients mode')
     arg(parser, 'gan_loss', type=str, default='wgan', help='one of: bce, wgan')
+    arg(parser, 'gp', type=float, default=10.0, help='gradient penalty weight')
     arg(parser, 'kernel', type=str, default='gaussian', help='one of: gaussian, poly, cosine')
     arg(parser, 'kernel_sigma', type=float, default=1.6, help='final sigma for gaussian kernel')
     arg(parser, 'kernel_initial_sigma', type=float, default=1.6, help='initial sigma for gaussian kernel')

@@ -16,5 +16,5 @@ python main.py --name experiment_name_here --batch_size 200 --nonormal_latent --
 
 For CIFAR10 experiment, run:
 ```
-python main.py --name experiment_name_here --model adv.simcost --data cifar10 --z_size 100 --kernel cosine --batch_size 384 --learning_rate 3e-4
+python main.py --name experiment_name_here --model adv.simcost --data cifar10 --z_size 100 --kernel cosine --batch_size 400 --learning_rate 2e-4
 ```
