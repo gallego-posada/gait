@@ -68,11 +68,9 @@ class FixedModel(BaseFixed):
         if self.flags.kernel == 'gaussian':
             sigma = self.sigma_decay.get_y(self.get_train_steps())
             self.kernel = gaussian_kernel(sigma)
-        D = lambda x, y: renyi.renyi_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
-                                                               self.flags.alpha, use_full=self.flags.use_full,
-                                                               use_avg=self.flags.use_avg,
-                                                               symmetric=self.flags.symmetric)
+        D = lambda x, y: renyi.breg_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
+                                                              symmetric=self.flags.symmetric)
         if not self.flags.unbiased:
-            return D(x, x_gen)
+            return D(x_gen, x)
         else:
-            return 2 * D(x, x_gen) - D(x_gen, x_gen)
+            return 2 * D(x_gen, x) - D(x_gen, x_gen)

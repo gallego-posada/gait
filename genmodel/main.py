@@ -33,11 +33,8 @@ if __name__ == '__main__':
     arg(parser, 'v_size', type=int, default=16,
         help='dims for vectors to compare in learned costs (-1 for no projection)')
     arg(parser, 'disc_attn', type=bool, default=False, help='weigh input pixels in discriminator')
-    arg(parser, 'alpha', type=float, default=2, help='alpha')
-    arg(parser, 'use_avg', type=bool, default=False, help='use_avg in renyi mixture divergence')
-    arg(parser, 'use_full', type=bool, default=False, help='use_full in renyi mixture divergence')
-    arg(parser, 'symmetric', type=bool, default=True, help='symmetric in renyi mixture divergence')
-    arg(parser, 'unbiased', type=bool, default=True, help='unbiased gradients mode')
+    arg(parser, 'symmetric', type=bool, default=False, help='symmetric in mixture divergence')
+    arg(parser, 'unbiased', type=bool, default=False, help='unbiased gradients mode')
     arg(parser, 'gan_loss', type=str, default='wgan', help='one of: bce, wgan')
     arg(parser, 'kernel', type=str, default='gaussian', help='one of: gaussian, poly, cosine')
     arg(parser, 'kernel_sigma', type=float, default=4.6, help='final sigma for gaussian kernel')
