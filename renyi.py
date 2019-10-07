@@ -156,7 +156,7 @@ def breg_sim_divergence_stable(log_K, p, q, symmetric=False):
         return 1 + t1 - t2
 
 
-def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=True):
+def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=False):
     # NOTE: if you make changes in this function, do them in *_stable function under this as well.
     """
     Compute similarity sensitive Renyi divergence of between a pair of empirical distributions
@@ -178,12 +178,12 @@ def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=True):
 
     f_p = torch.cat([p, torch.zeros_like(q)], -1)
     f_q = torch.cat([torch.zeros_like(p), q], -1)
-    f_K = torch.cat([torch.cat([Kyy, Kyx], 1), torch.cat([Kyy.t(), Kxx], 1)], 0)
+    f_K = torch.cat([torch.cat([Kyy, Kyx], 1), torch.cat([Kyx.t(), Kxx], 1)], 0)
 
     return breg_sim_divergence(f_K, f_p, f_q, symmetric=symmetric)
 
 
-def breg_mixture_divergence_stable(p, Y, q, X, log_kernel, symmetric=True):
+def breg_mixture_divergence_stable(p, Y, q, X, log_kernel, symmetric=False):
     """
     Compute similarity sensitive Renyi divergence of between a pair of empirical distributions
     p and q with supports Y and X, respectively
@@ -204,7 +204,7 @@ def breg_mixture_divergence_stable(p, Y, q, X, log_kernel, symmetric=True):
 
     f_p = torch.cat([p, torch.zeros_like(q)], -1)
     f_q = torch.cat([torch.zeros_like(p), q], -1)
-    f_log_K = torch.cat([torch.cat([log_Kyy, log_Kyx], 1), torch.cat([log_Kyy.t(), log_Kxx], 1)], 0)
+    f_log_K = torch.cat([torch.cat([log_Kyy, log_Kyx], 1), torch.cat([log_Kyx.t(), log_Kxx], 1)], 0)
 
     return breg_sim_divergence_stable(f_log_K, f_p, f_q, symmetric=symmetric)
 
