@@ -12,7 +12,7 @@ from .basemnist import MNISTBaseRunner
 class AdversarialRunner(MNISTBaseRunner):
 
     def __init__(self, flags, *args, **kwargs):
-        super().__init__(flags, BaseAdversarial, ['g_loss', 'd_loss'])
+        super().__init__(flags, BaseAdversarial)
 
     def run_batch(self, batch, train=False):
         z = torch.rand(self.batch_size, self.flags.z_size)

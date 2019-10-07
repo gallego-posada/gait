@@ -14,7 +14,7 @@ from .basemnist import MNISTBaseRunner
 class FixedRunner(MNISTBaseRunner):
 
     def __init__(self, flags, *args, **kwargs):
-        super().__init__(flags, BaseFixed, ['loss'])
+        super().__init__(flags, BaseFixed)
 
     def run_batch(self, batch, train=False):
         z = torch.rand(self.batch_size, self.flags.z_size)
