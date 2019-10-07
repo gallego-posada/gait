@@ -16,7 +16,8 @@ if __name__ == '__main__':
     arg(parser, 'load_file', type=str, default='', help='file to load model from')
     arg(parser, 'save_file', type=str, default='model.dat', help='model save file')
     arg(parser, 'save_every', type=int, default=350, help='save every these many global steps (-1 to disable saving)')
-    arg(parser, 'data_path', type=str, default='data/MNIST')
+    arg(parser, 'data', type=str, default='mnist', help='mnist or cifar10')
+    arg(parser, 'data_path', type=str, default='data')
     arg(parser, 'logs_path', type=str, default='logs')
     arg(parser, 'force_logs', type=bool, default=False)
     arg(parser, 'resume_checkpoint', type=bool, default=True)
@@ -31,8 +32,6 @@ if __name__ == '__main__':
     arg(parser, 'z_size', type=int, default=2, help='latent dims per layer')
     arg(parser, 'normal_latent', type=bool, default=False, help='normal prior for latent')
     arg(parser, 'd_size', type=int, default=500, help='disc hidden state dims (-1 for linear disc)')
-    arg(parser, 'v_size', type=int, default=16,
-        help='dims for vectors to compare in learned costs (-1 for no projection)')
     arg(parser, 'layers', type=int, default=2, help='generator layers')
     arg(parser, 'disc_attn', type=bool, default=False, help='weigh input pixels in discriminator')
     arg(parser, 'symmetric', type=bool, default=False, help='symmetric in mixture divergence')
