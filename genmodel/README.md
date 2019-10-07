@@ -14,3 +14,7 @@ To compare with Sinkhorn divergence:
 python main.py --name experiment_name_here --batch_size 200 --nonormal_latent --layers 2
 ```
 
+For CIFAR10 experiment, run:
+```
+python main.py --name experiment_name_here --model adv.simcost --data cifar10 --z_size 100 --kernel cosine --batch_size 1024
+```

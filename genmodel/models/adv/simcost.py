@@ -26,8 +26,8 @@ def gaussian_kernel(sigma):
 class SimilarityCostModel(BaseAdversarial):
 
     def __init__(self, flags, *args, **kwargs):
-        generator = Generator(flags.z_size, flags.h_size)
-        discriminator = Discriminator(flags.d_size, out_size=flags.v_size, attn=flags.disc_attn)
+        generator = Generator()
+        discriminator = Discriminator()
         super().__init__(flags, generator, discriminator, *args, **kwargs)
         if flags.unbiased:
             self.batch_size = flags.batch_size // 2
@@ -51,13 +51,15 @@ class SimilarityCostModel(BaseAdversarial):
             v_real = self.disc(x_real)
             v_gen = self.disc(x_gen)
 
-        sigma = self.sigma_decay.get_y(self.get_train_steps())
-        self.kernel = gaussian_kernel(sigma)
-        D = lambda x, y: renyi.breg_mixture_divergence(self.uniform, x,
-                                                       self.uniform, y,
-                                                       self.kernel,
-                                                       self.flags.alpha,
-                                                       symmetric=self.flags.symmetric)
+        if self.flags.kernel == 'gaussian':
+            sigma = self.sigma_decay.get_y(self.get_train_steps())
+            self.kernel = gaussian_kernel(sigma)
+            D = lambda x, y: renyi.breg_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
+                                                                  symmetric=self.flags.symmetric)
+        else:
+            D = lambda x, y: renyi.breg_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel,
+                                                           symmetric=self.flags.symmetric)
+
         if not self.flags.unbiased:
             div = D(v_real, v_gen)
         else:
@@ -69,7 +71,7 @@ class SimilarityCostModel(BaseAdversarial):
                 D(x_prime, y_prime) - 2 * D(y, y_prime) - 2 * D(x, x_prime)
 
         if self.train_disc():
-            loss = -div
+            loss = -div + 10.0 * self.gradient_penalty(x_real, x_gen)
             self.d_loss = loss.item()
         else:
             loss = div
