@@ -21,17 +21,22 @@ def poly_kernel(degree):
 
 class Decoder(nn.Module):
 
-    def __init__(self, z_size, hidden_size, output_size):
+    def __init__(self, z_size, hidden_size, output_size, layers=2):
         super().__init__()
-        self.fc = nn.Sequential(
-            nn.Linear(z_size, hidden_size),
-            nn.BatchNorm1d(hidden_size),
-            nn.LeakyReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.BatchNorm1d(hidden_size),
-            nn.LeakyReLU(),
-            nn.Linear(hidden_size, output_size)
-        )
+        if layers == 1:  # VAE setup
+            self.fc = nn.Sequential(
+                nn.Linear(z_size, hidden_size),
+                nn.Tanh(),
+                nn.Linear(hidden_size, output_size)
+            )
+        elif layers == 2:  # Sinkhorn setup
+            self.fc = nn.Sequential(
+                nn.Linear(z_size, hidden_size),
+                nn.ReLU(),
+                nn.Linear(hidden_size, hidden_size),
+                nn.ReLU(),
+                nn.Linear(hidden_size, output_size)
+            )
 
     def forward(self, z):
         return torch.sigmoid(self.fc(z))
@@ -39,10 +44,10 @@ class Decoder(nn.Module):
 
 class Fixed(nn.Module):
 
-    def __init__(self, x_size, h_size, z_size):
+    def __init__(self, x_size, h_size, z_size, layers=2):
         super().__init__()
         self.z_size = z_size
-        self.x_z = Decoder(z_size, h_size, x_size)
+        self.x_z = Decoder(z_size, h_size, x_size, layers=layers)
 
     def forward(self, z):
         return self.x_z((z * 2.0) - 1.0)
@@ -51,7 +56,7 @@ class Fixed(nn.Module):
 class FixedModel(BaseFixed):
 
     def __init__(self, flags, *args, **kwargs):
-        model = Fixed(28 * 28, flags.h_size, flags.z_size)
+        model = Fixed(28 * 28, flags.h_size, flags.z_size, layers=flags.layers)
         optimizer = optim.Adam(model.parameters(), lr=flags.learning_rate, betas=(flags.beta1, flags.beta2))
         super().__init__(model, flags, optimizer=optimizer, *args, **kwargs)
         uniform = torch.ones(1, self.flags.batch_size, device=self.device)

@@ -4,6 +4,7 @@ import datetime
 
 import numpy as np
 import torch
+from torch.distributions import normal
 
 from pylego import misc
 
@@ -17,7 +18,10 @@ class FixedRunner(MNISTBaseRunner):
         super().__init__(flags, BaseFixed)
 
     def run_batch(self, batch, train=False):
-        z = torch.rand(self.batch_size, self.flags.z_size)
+        if self.flags.normal_latent:
+            z = torch.randn(self.batch_size, self.flags.z_size)
+        else:
+            z = torch.rand(self.batch_size, self.flags.z_size)
         z, x = self.model.prepare_batch([z, batch[0]])
         loss = self.model.run_loss(z, labels=x)
         if train:
@@ -30,14 +34,21 @@ class FixedRunner(MNISTBaseRunner):
             self.do_plots()
         else:
             print('* Visualizing', split)
-            Z = torch.linspace(0.0, 1.0, steps=20)
+            Z = torch.linspace(0.0 + 1e-3, 1.0 - 1e-3, steps=20)
             Z = torch.cartesian_prod(Z, Z).view(20, 20, 2)
+            if self.flags.z_size == 2 and self.flags.normal_latent:
+                dist = normal.Normal(0.0, 1.0)
             x_gens = []
             for row in range(20):
                 if self.flags.z_size == 2:
                     z = Z[row]
+                    if self.flags.normal_latent:
+                        z = dist.icdf(z)
                 else:
-                    z = torch.rand(20, self.flags.z_size)
+                    if self.flags.normal_latent:
+                        z = torch.randn(20, self.flags.z_size)
+                    else:
+                        z = torch.rand(20, self.flags.z_size)
                 z = self.model.prepare_batch(z)
                 x_gen = self.model.run_batch([z]).view(20, 1, 28, 28).detach().cpu()
                 x_gens.append(x_gen)
