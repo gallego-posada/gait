@@ -13,7 +13,8 @@ if __name__ == '__main__':
 
     local_words = set()
     for article_fname in sorted(glob.glob('data/English/*.txt')):
-        with open(article_fname, 'r') as f:
+        with open(article_fname, 'r', encoding="latin1") as f:
+            print(article_fname)
             text = bs4.BeautifulSoup(f.read(), 'html5lib').text
 
         raw_tokens = [wnl.lemmatize(w.lower()) for s in sent_tokenize(text) for w in word_tokenize(s)]
@@ -32,7 +33,8 @@ if __name__ == '__main__':
         local_words.update(proc_tokens)
         processed = ' '.join(proc_tokens)
         with open(article_fname.replace('/English/', '/EnglishProcessed/'), 'w') as f:
-            print(processed, file=f)
+            f.write(processed)
+            # print(processed, file=f)
 
     with open('data/news_words', 'wb') as f:
         pickle.dump(list(local_words), f)

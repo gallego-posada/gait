@@ -1,6 +1,6 @@
 # Text Summarization Experiment
 This directory contains code to replicate the final figure of section 4.1, on text summarization.
-To run this code, please first download the 300-dimensional GLoVE vectors from http://nlp.stanford.edu/data/glove.6B.zip,
+To run this code, please first download the 300-dimensional word vectors from https://dl.fbaipublicfiles.com/fasttext/vectors-english/wiki-news-300d-1M-subword.vec.zip,
 and the parallel news corpus from http://www.casmacat.eu/corpus/news-commentary/txt.tgz,
 and place both in the directory ./data/ (unzipping as necessary).
 

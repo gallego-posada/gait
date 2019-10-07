@@ -16,7 +16,7 @@ import argparse
 from pylego.misc import add_argument as arg
 
 from renyi import renyi_sim_divergence, rbf_kernel, \
-    renyi_mixture_divergence_stable
+    renyi_mixture_divergence_stable, breg_sim_divergence_stable
 import utils
 if torch.cuda.is_available():
     device = "cuda"
@@ -50,7 +50,7 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
     step = 0
     while step < 100000 and not converged:
         q = F.softmax(q_logits, dim=1)
-        div = renyi_mixture_divergence_stable(p, embs, q, locs, log_kernel=kernel, alpha=1)
+        div = breg_sim_divergence_stable(p, embs, q, locs, log_kernel=kernel)
 
         div_item = div.item()
         loss = div
@@ -122,7 +122,7 @@ def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, a
     while step < 25000 and not converged:
         lda = lda_max*max(min(step/10000., 1.), 0)
         q = F.softmax(q_logits, dim=1)
-        div = renyi_sim_divergence(K, p, q, alpha=alpha)
+        div = breg_sim_divergence(K, q, p)
         reg = lda * torch.norm(q, p=power)
         div_item = div.item()
         loss = div+reg
