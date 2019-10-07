@@ -102,25 +102,38 @@ def breg_sim_divergence(K, p, q, symmetric=False):
     Output:
        div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q
     """
+    if symmetric:
+        r = (p + q) / 2.
     if callable(K):
         pK = K(p)
         qK = K(q)
+        if symmetric:
+            rK = K(r)
     else:
         pK = p @ K
         qK = q @ K
-    rat1 = (pK, qK)
+        if symmetric:
+            rK = r @ K
+    if symmetric:
+        rat1 = (pK, rK)
+        rat2 = (qK, rK)
+    else:
+        rat1 = (pK, qK)
+
     if callable(K):  # we're dealing with an image
         sum_dims = (-2, -1)
     else:
         sum_dims = -1
-    t1 = (p * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(sum_dims)
-    t2 = (q * (rat1[0] / rat1[1])).sum(sum_dims)
-    if symmetric:
-        t3 = (q * (torch.log(rat1[1]) - torch.log(rat1[0]))).sum(sum_dims)
-        t4 = (p * (rat1[1] / rat1[0])).sum(sum_dims)
-        return (2 + t1 - t2 + t3 - t4)/2.
 
+    if symmetric:
+        t1 = (p * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(sum_dims)
+        t2 = (r * (rat1[0] / rat1[1])).sum(sum_dims)
+        t3 = (q * (torch.log(rat2[0]) - torch.log(rat2[1]))).sum(sum_dims)
+        t4 = (r * (rat2[0] / rat2[1])).sum(sum_dims)
+        return (2 + t1 - t2 + t3 - t4) / 2.
     else:
+        t1 = (p * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(sum_dims)
+        t2 = (q * (rat1[0] / rat1[1])).sum(sum_dims)
         return 1 + t1 - t2
 
 
@@ -135,24 +148,38 @@ def breg_sim_divergence_stable(log_K, p, q, symmetric=False):
     Output:
        div [batch_size x 1 tensor] i-th entry is divergence between i-th row of p and i-th row of q
     """
+    if symmetric:
+        r = (p + q) / 2.
     if callable(log_K):
         log_pK = log_K(p)
         log_qK = log_K(q)
+        if symmetric:
+            log_rK = log_K(r)
     else:
         log_pK = torch.logsumexp(log_K[None, ...] + torch.log(p[:, None, :]), dim=2)
         log_qK = torch.logsumexp(log_K[None, ...] + torch.log(q[:, None, :]), dim=2)
-    rat1 = (log_pK, log_qK)
+        if symmetric:
+            log_rK = torch.logsumexp(log_K[None, ...] + torch.log(r[:, None, :]), dim=2)
+    if symmetric:
+        rat1 = (log_pK, log_rK)
+        rat2 = (log_qK, log_rK)
+    else:
+        rat1 = (log_pK, log_qK)
+
     if callable(log_K):  # we're dealing with an image
         sum_dims = (-2, -1)
     else:
         sum_dims = -1
-    t1 = (p * (rat1[0] - rat1[1])).sum(sum_dims)
-    t2 = (q * torch.exp(rat1[0] - rat1[1])).sum(sum_dims)
+
     if symmetric:
-        t3 = (q * (rat1[1] - rat1[0])).sum(sum_dims)
-        t4 = (p * torch.exp(rat1[1] - rat1[0])).sum(sum_dims)
-        return (2 + t1 - t2 + t3 - t4)/2.
+        t1 = (p * (rat1[0] - rat1[1])).sum(sum_dims)
+        t2 = (r * torch.exp(rat1[0] - rat1[1])).sum(sum_dims)
+        t3 = (q * (rat2[0] - rat2[1])).sum(sum_dims)
+        t4 = (r * torch.exp(rat2[0] - rat2[1])).sum(sum_dims)
+        return (2 + t1 - t2 + t3 - t4) / 2.
     else:
+        t1 = (p * (rat1[0] - rat1[1])).sum(sum_dims)
+        t2 = (q * torch.exp(rat1[0] - rat1[1])).sum(sum_dims)
         return 1 + t1 - t2
 
 
