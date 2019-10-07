@@ -71,6 +71,6 @@ class FixedModel(BaseFixed):
         D = lambda x, y: renyi.breg_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
                                                               symmetric=self.flags.symmetric)
         if not self.flags.unbiased:
-            return D(x_gen, x)
+            return D(x, x_gen)
         else:
-            return 2 * D(x_gen, x) - D(x_gen, x_gen)
+            return 2 * D(x, x_gen) - D(x_gen, x_gen)
