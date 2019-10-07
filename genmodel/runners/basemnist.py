@@ -16,4 +16,4 @@ class MNISTBaseRunner(runner.Runner):
         model_class = misc.get_subclass(importlib.import_module('models.' + self.flags.model), model_class)
         self.model = model_class(self.flags, learning_rate=flags.learning_rate, cuda=flags.cuda,
                                  load_file=flags.load_file, save_every=flags.save_every, save_file=flags.save_file,
-                                 debug=flags.debug, max_save_files=999999)
+                                 debug=flags.debug, max_save_files=5)
