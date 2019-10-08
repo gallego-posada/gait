@@ -2,6 +2,8 @@ import argparse
 import glob
 import os
 
+import torch
+
 from pylego.misc import add_argument as arg
 
 from runners.fixedrunner import FixedRunner
@@ -13,6 +15,7 @@ if __name__ == '__main__':
     arg(parser, 'name', type=str, required=True, help='name of the experiment')
     arg(parser, 'model', type=str, default='fixed.fixed', help='model to use')
     arg(parser, 'cuda', type=bool, default=True, help='enable CUDA')
+    arg(parser, 'double_precision', type=bool, default=False, help='use double precision')
     arg(parser, 'load_file', type=str, default='', help='file to load model from')
     arg(parser, 'save_file', type=str, default='model.dat', help='model save file')
     arg(parser, 'save_every', type=int, default=350, help='save every these many global steps (-1 to disable saving)')
@@ -62,6 +65,9 @@ if __name__ == '__main__':
         flags.threads = max(1, len(os.sched_getaffinity(0)) - 1)
     if flags.grad_norm < 0:
         flags.grad_norm = None
+
+    if flags.double_precision:
+        torch.set_default_dtype(torch.float64)
 
     iters = 0
     while True:

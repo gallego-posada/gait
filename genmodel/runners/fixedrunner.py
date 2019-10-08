@@ -29,6 +29,8 @@ class FixedRunner(MNISTBaseRunner):
         else:
             z = torch.rand(self.batch_size, self.flags.z_size)
         z, x = self.model.prepare_batch([z, batch[0]])
+        if self.flags.double_precision:
+            x = x.to(torch.float64)
         loss = self.model.run_loss(z, labels=x)
         if train:
             self.model.train(loss, clip_grad_norm=self.flags.grad_norm)

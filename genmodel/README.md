@@ -16,7 +16,7 @@ python main.py --name experiment_name_here --batch_size 200 --nonormal_latent --
 
 To generate CIFAR10 images:
 ```
-python main.py --name experiment_name_here --data cifar10 --z_size 100 --batch_size 512 --normal_latent --layers 3
+python main.py --name experiment_name_here --data cifar10 --z_size 100 --batch_size 450 --normal_latent --layers 3
 ```
 
 For CIFAR10 adversarial model, run:
