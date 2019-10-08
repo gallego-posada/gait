@@ -6,7 +6,7 @@ To reproduce the MNIST generative model results from the paper, use the followin
 
 To compare with VAE:
 ```
-python main.py --name experiment_name_here --batch_size 100 --normal_latent --layers 1
+python main.py --name experiment_name_here --batch_size 100 --layers 1
 ```
 
 To compare with Sinkhorn divergence:
@@ -14,12 +14,12 @@ To compare with Sinkhorn divergence:
 python main.py --name experiment_name_here --batch_size 200 --nonormal_latent --layers 2
 ```
 
-To generate CIFAR10 images:
+To generate Fashion MNIST manifold:
 ```
-python main.py --name experiment_name_here --data cifar10 --z_size 100 --batch_size 450 --normal_latent --layers 3
+python main.py --name experiment_name_here --data fmnist --batch_size 200 --layers 2
 ```
 
-For CIFAR10 adversarial model, run:
+To generate Fashion MNIST samples:
 ```
-python main.py --name experiment_name_here --model adv.simcost --data cifar10 --z_size 100 --kernel cosine --batch_size 400 --learning_rate 2e-4
+python main.py --name experiment_name_here --data fmnist --batch_size 500 --layers 2 --z_size 100
 ```
