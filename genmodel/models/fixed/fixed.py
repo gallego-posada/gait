@@ -4,6 +4,7 @@ import torch
 from torch import nn, optim
 
 from pylego.misc import LinearDecay
+from pylego import ops
 
 from ..basefixed import BaseFixed
 
@@ -21,7 +22,7 @@ def poly_kernel(degree):
 
 class Decoder(nn.Module):
 
-    def __init__(self, z_size, hidden_size, output_size, layers=2):
+    def __init__(self, z_size, hidden_size, output_size, layers=2, ngf=64):
         super().__init__()
         if layers == 1:  # VAE setup
             self.fc = nn.Sequential(
@@ -36,6 +37,26 @@ class Decoder(nn.Module):
                 nn.Linear(hidden_size, hidden_size),
                 nn.ReLU(),
                 nn.Linear(hidden_size, output_size)
+            )
+        elif layers == 3:  # CIFAR10
+            self.fc = nn.Sequential(
+                ops.View(-1, z_size, 1, 1),
+                # input is Z, going into a convolution
+                nn.ConvTranspose2d(z_size, ngf * 8, 4, 1, 0),
+                nn.BatchNorm2d(ngf * 8),
+                nn.LeakyReLU(True),
+                # state size. (ngf*8) x 4 x 4
+                nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1),
+                nn.BatchNorm2d(ngf * 4),
+                nn.LeakyReLU(True),
+                # state size. (ngf*4) x 8 x 8
+                nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1),
+                nn.BatchNorm2d(ngf * 2),
+                nn.LeakyReLU(True),
+                # state size. (ngf*2) x 16 x 16
+                nn.ConvTranspose2d(ngf * 2, 3, 4, 2, 1),
+                # state size. (nc) x 32 x 32
+                ops.View(-1, 3 * 32 * 32)
             )
 
     def forward(self, z):
