@@ -21,5 +21,5 @@ python main.py --name experiment_name_here --data fmnist --batch_size 200 --laye
 
 To generate Fashion MNIST samples:
 ```
-python main.py --name experiment_name_here --data fmnist --batch_size 500 --layers 2 --z_size 100
+python main.py --name experiment_name_here --data fmnist --batch_size 500 --layers 2 --z_size 20
 ```
