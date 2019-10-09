@@ -2,6 +2,8 @@ import argparse
 import glob
 import os
 
+import torch
+
 from pylego.misc import add_argument as arg
 
 from runners.fixedrunner import FixedRunner
@@ -13,10 +15,12 @@ if __name__ == '__main__':
     arg(parser, 'name', type=str, required=True, help='name of the experiment')
     arg(parser, 'model', type=str, default='fixed.fixed', help='model to use')
     arg(parser, 'cuda', type=bool, default=True, help='enable CUDA')
+    arg(parser, 'double_precision', type=bool, default=False, help='use double precision')
     arg(parser, 'load_file', type=str, default='', help='file to load model from')
     arg(parser, 'save_file', type=str, default='model.dat', help='model save file')
     arg(parser, 'save_every', type=int, default=350, help='save every these many global steps (-1 to disable saving)')
-    arg(parser, 'data_path', type=str, default='data/MNIST')
+    arg(parser, 'data', type=str, default='mnist', help='mnist, cifar10 or fmnist')
+    arg(parser, 'data_path', type=str, default='data')
     arg(parser, 'logs_path', type=str, default='logs')
     arg(parser, 'force_logs', type=bool, default=False)
     arg(parser, 'resume_checkpoint', type=bool, default=True)
@@ -25,17 +29,18 @@ if __name__ == '__main__':
     arg(parser, 'beta1', type=float, default=0.9, help='Adam beta1')
     arg(parser, 'beta2', type=float, default=0.999, help='Adam beta2')
     arg(parser, 'grad_norm', type=float, default=-1, help='gradient norm clipping (-1 to disable)')
-    arg(parser, 'batch_size', type=int, default=512, help='batch size')
+    arg(parser, 'batch_size', type=int, default=200, help='batch size')
     arg(parser, 'epochs', type=int, default=500, help='no. of training epochs')
-    arg(parser, 'h_size', type=int, default=384, help='hidden state dims')
+    arg(parser, 'h_size', type=int, default=500, help='hidden state dims')
     arg(parser, 'z_size', type=int, default=2, help='latent dims per layer')
-    arg(parser, 'd_size', type=int, default=384, help='disc hidden state dims (-1 for linear disc)')
-    arg(parser, 'v_size', type=int, default=16,
-        help='dims for vectors to compare in learned costs (-1 for no projection)')
+    arg(parser, 'normal_latent', type=bool, default=True, help='normal prior for latent')
+    arg(parser, 'd_size', type=int, default=500, help='disc hidden state dims (-1 for linear disc)')
+    arg(parser, 'layers', type=int, default=2, help='generator layers')
     arg(parser, 'disc_attn', type=bool, default=False, help='weigh input pixels in discriminator')
     arg(parser, 'symmetric', type=bool, default=False, help='symmetric in mixture divergence')
     arg(parser, 'unbiased', type=bool, default=False, help='unbiased gradients mode')
     arg(parser, 'gan_loss', type=str, default='wgan', help='one of: bce, wgan')
+    arg(parser, 'gp', type=float, default=10.0, help='gradient penalty weight')
     arg(parser, 'kernel', type=str, default='gaussian', help='one of: gaussian, poly, cosine')
     arg(parser, 'kernel_sigma', type=float, default=1.6, help='final sigma for gaussian kernel')
     arg(parser, 'kernel_initial_sigma', type=float, default=1.6, help='initial sigma for gaussian kernel')
@@ -44,8 +49,8 @@ if __name__ == '__main__':
     arg(parser, 'kernel_degree', type=float, default=2, help='degree for polynomial or cosine kernel')
     arg(parser, 'sinkhorn_eps', type=float, default=1, help='Sinkhorn epislon')
     arg(parser, 'sinkhorn_iters', type=int, default=10, help='Sinkhorn iters')
-    arg(parser, 'gen_iters', type=int, default=3, help='no. of generator iters before discriminator update')
-    arg(parser, 'disc_iters', type=int, default=1, help='no. of discriminator iters before generator update')
+    arg(parser, 'gen_iters', type=int, default=1, help='no. of generator iters before discriminator update')
+    arg(parser, 'disc_iters', type=int, default=5, help='no. of discriminator iters before generator update')
     arg(parser, 'print_every', type=int, default=50, help='print losses every these many steps')
     arg(parser, 'max_batches', type=int, default=-1, help='max batches per split (for debugging)')
     arg(parser, 'gpus', type=str, default='0')
@@ -60,6 +65,9 @@ if __name__ == '__main__':
         flags.threads = max(1, len(os.sched_getaffinity(0)) - 1)
     if flags.grad_norm < 0:
         flags.grad_norm = None
+
+    if flags.double_precision:
+        torch.set_default_dtype(torch.float64)
 
     iters = 0
     while True:

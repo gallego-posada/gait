@@ -1,6 +1,6 @@
 import importlib
 
-from readers.mnist import MNISTReader
+from readers import cifar10, fmnist, mnist
 from pylego import misc, runner
 
 
@@ -8,7 +8,12 @@ class MNISTBaseRunner(runner.Runner):
 
     def __init__(self, flags, model_class, *args, **kwargs):
         self.flags = flags
-        reader = MNISTReader(flags.data_path)
+        if flags.data == 'mnist':
+            reader = mnist.MNISTReader(flags.data_path)
+        elif flags.data == 'cifar10':
+            reader = cifar10.CIFAR10Reader(flags.data_path)
+        elif flags.data == 'fmnist':
+            reader = fmnist.FashionMNISTReader(flags.data_path)
         summary_dir = flags.log_dir + '/summary'
         super().__init__(reader, flags.batch_size, flags.epochs, summary_dir, threads=flags.threads,
                          print_every=flags.print_every, visualize_every=flags.visualize_every,
