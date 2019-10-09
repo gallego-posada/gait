@@ -16,7 +16,7 @@ import argparse
 from pylego.misc import add_argument as arg
 
 from renyi import renyi_sim_divergence, rbf_kernel, \
-    renyi_mixture_divergence_stable, breg_sim_divergence_stable
+    breg_mixture_divergence_stable, breg_sim_divergence_stable
 import utils
 if torch.cuda.is_available():
     device = "cuda"
@@ -50,7 +50,7 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
     step = 0
     while step < 100000 and not converged:
         q = F.softmax(q_logits, dim=1)
-        div = breg_sim_divergence_stable(p, embs, q, locs, log_kernel=kernel)
+        div = breg_mixture_divergence_stable(p, embs, q, locs, log_kernel=kernel)
 
         div_item = div.item()
         loss = div
@@ -94,23 +94,23 @@ def get_summary_movable_locs(words, probs, embs, all_embs, all_words, k=25, scal
     return Kq, Kp, q, locs, closest_words
 
 
-def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, alpha=1, lda_max=.1, power=.75):
+def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, lda_max=.1, power=.75):
     p = torch.tensor(np.array(probs, dtype=np.float32)[None, ...])
 
     if rbf:
         dist = utils.batch_pdist(embs, embs, p=2)
-        K = torch.exp(dist**2/rbf_sigma**2)
+        K = torch.exp(-dist**2/rbf_sigma**2)
     else:
         K = (utils.batch_cosine_similarity(embs, embs) + 1)/2
         K = K**cosine_power
     plt.imshow(K)
     plt.colorbar()
-    plt.show()
+    # plt.show()
 
     Kp = K @ p[0]
 
-    q_logits = (0*torch.randn_like(p)) + torch.log(p)
-    q_logits = q_logits - torch.mean(q_logits)
+    q_logits = torch.zeros_like(p)#(0*torch.randn_like(p)) + torch.log(p)
+    #q_logits = q_logits - torch.mean(q_logits)
 
     p = p.to(device)
     q_logits = q_logits.to(device).detach().requires_grad_()
@@ -122,21 +122,22 @@ def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, a
     while step < 25000 and not converged:
         lda = lda_max*max(min(step/10000., 1.), 0)
         q = F.softmax(q_logits, dim=1)
-        div = breg_sim_divergence(K, q, p)
+        div = breg_sim_divergence_stable(K, p, q)
         reg = lda * torch.norm(q, p=power)
         div_item = div.item()
         loss = div+reg
         loss_item = loss.item()
 
         if (step - 1) % 100 == 0:
-            print(-np.min(recent) + np.mean(recent), np.min(recent), np.mean(recent))
+            # print(-np.min(recent) + np.mean(recent), np.min(recent), np.mean(recent))
+            print(loss_item, div, reg)
 
         if step % 1000 == 0:
             print('Step %d: %0.4f; %0.4f' % (step, div_item, loss_item))
             inp = sorted(list(zip(q[0], words)), reverse=True)
-            print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
+            # print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
             inp = sorted(list(zip((K@q[0]), words)), reverse=True)
-            print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
+            # print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
         recent.append(loss.item())
         loss.backward()
         q_optimizer.step()
@@ -147,11 +148,11 @@ def print_summary(words, probs, embs, rbf_sigma=20, rbf=False, cosine_power=1, a
     q = q[0]
     Kq = K @ q
     inp = sorted(list(zip(probs, words)), reverse=True)
-    print('\nInput:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
+    # print('\nInput:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
     inp = sorted(list(zip(Kq, words)), reverse=True)
-    print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
+    # print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
     inp = sorted(list(zip(q, words)), reverse=True)
-    print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
+    # print('\nSummary:', ['%s %0.2f' % (w, p * 100) for (p, w) in inp])
 
     return Kq, Kp, q
 
@@ -185,7 +186,7 @@ if __name__ == '__main__':
     with open('data/news_words', 'rb') as f:
         all_words = pickle.load(f)
     with open('data/tfidf', 'rb') as f:
-        tdidf_articles = pickle.load(f)
+        tfidf_articles = pickle.load(f)
 
     if flags.raw:
         with open('data/news_vectors', 'rb') as f:
@@ -201,9 +202,9 @@ if __name__ == '__main__':
             os.mkdir("./figs/" + flags.name)
 
     fnames = sorted(glob.glob('data/EnglishProcessed/*.txt'))
-    for i, article_fname in enumerate(fnames[5:10], 1):
+    for i, article_fname in enumerate(fnames[6:10], 6):
         print(article_fname)
-        feature_index = tdidf_articles[i, :].nonzero()[1]
+        feature_index = tfidf_articles[i, :].nonzero()[1]
         if not feature_index.size:
             continue
 
@@ -212,7 +213,8 @@ if __name__ == '__main__':
         print(article)
         print('-----')
         words = [all_words[x] for x in feature_index]
-        probs = [tdidf_articles[i, x] for x in feature_index]
+        print(words)
+        probs = [tfidf_articles[i, x] for x in feature_index]
         wordcloud(probs, words, "figs/{}cloud_{}_tfidf".format(flags.name, i-5), 0, hsize=5, vsize=2)
         assert np.isclose(np.sum(probs), 1.0)
         embs = torch.stack([word_embs[x] for x in feature_index])
@@ -221,7 +223,7 @@ if __name__ == '__main__':
         print()
 
         Kq, Kp, q = print_summary(words, probs, embs, rbf=flags.rbf, cosine_power=flags.cosine_power, power=flags.power,
-                                  rbf_sigma=flags.rbf_sigma, alpha=flags.alpha, lda_max=flags.lda)
+                                  rbf_sigma=flags.rbf_sigma, lda_max=flags.lda)
 
         count = torch.sum(q > 0.01).int().item()
         reduced = inp[:count]
@@ -238,7 +240,7 @@ if __name__ == '__main__':
         bar_data = list(zip(*[(i, p.item() * 100) for (i, p) in enumerate(plot_indices)]))
         plt.bar(*bar_data, width=1.0, alpha=0.5)
         plt.savefig("KP_plot.pdf")
-        plt.show()
+        # plt.show()
 
         bar_indices = sorted(list(zip(probs, range(len(feature_index)))), reverse=True)
         bar_data = list(zip(*[(i, p * 100) for (i, (p, w)) in enumerate(bar_indices)]))
@@ -247,7 +249,7 @@ if __name__ == '__main__':
         plot_indices = [q[w] for (_, w) in bar_indices]
         bar_data = list(zip(*[(i, p.item() * 100) for (i, p) in enumerate(plot_indices)]))
         plt.bar(*bar_data, width=1.0, alpha=0.5)
-        plt.show()
+        # plt.show()
         plt.savefig("Probs_plot.pdf")
 
         bar_indices = sorted(list(zip(Kp, range(len(feature_index)))), reverse=True)
@@ -258,7 +260,7 @@ if __name__ == '__main__':
         plot_indices = [q[w] for (_, w) in bar_indices]
         bar_data = list(zip(*[(i, p.item() * 100) for (i, p) in enumerate(plot_indices)]))
         plt.bar(*bar_data, width=1.0, alpha=0.5)
-        plt.show()
+        # plt.show()
         plt.savefig("KP_plot_2.pdf")
 
         print("===============")

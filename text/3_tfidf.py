@@ -13,6 +13,7 @@ if __name__ == '__main__':
                                  vocabulary=words,
                                  sublinear_tf=True,
                                  norm='l1',
+                                 encoding="latin1",
                                  )
     X = vectorizer.fit_transform(fnames)
     with open('data/tfidf', 'wb') as f:
