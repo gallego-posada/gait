@@ -1,2 +1,2 @@
-# gear  
-Code for the paper *GEAR: Geometry Aware Rényi Information*
+# gait  
+Code for the paper *GAIT: A Geometric Approach to Information Theory*
