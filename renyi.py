@@ -594,11 +594,10 @@ def cosine_similarity(X, Y, log=False):
 
 def poly_kernel(X, Y, degree=2, p=2, log=False):
     pdist = utils.batch_pdist(X, Y, p)
-    ret = utils.min_clamp_prob(1 / (1 + pdist)**degree)
     if log:
-        return torch.log(ret)
+        return -torch.log(1 + pdist) * degree
     else:
-        return ret
+        return utils.min_clamp_prob(1 / (1 + pdist)**degree)
 
 def rbf_kernel(X, Y, sigmas=[1.], p=2, degree=2, log=False):
     pdist = utils.batch_pdist(X, Y, p)
