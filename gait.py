@@ -58,7 +58,7 @@ def sim_cross_entropy(K, p, q, alpha=1, normalize=False):
     """
     TODO: this is not mathematically correct!!
     
-    Compute similarity sensitive Renyi cross entropy of a (batch of) distribution(s) q
+    Compute similarity sensitive gait cross entropy of a (batch of) distribution(s) q
     with respect to a (batch of) distribution(s) pover an alphabet of n elements.
     
     Inputs:

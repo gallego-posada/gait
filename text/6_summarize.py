@@ -15,8 +15,9 @@ import matplotlib.pyplot as plt
 import argparse
 from pylego.misc import add_argument as arg
 
-from renyi import renyi_sim_divergence, rbf_kernel, \
-    breg_mixture_divergence_stable, breg_sim_divergence_stable
+from gait import rbf_kernel,\
+    breg_mixture_divergence_stable,\
+    breg_sim_divergence_stable
 import utils
 if torch.cuda.is_available():
     device = "cuda"

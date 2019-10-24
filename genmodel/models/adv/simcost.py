@@ -10,17 +10,17 @@ from .arch import Discriminator, Generator
 from ..baseadv import BaseAdversarial
 
 sys.path.append('..')
-import renyi
+import gait
 import utils
 
 
 def cosine_kernel(degree=2):
-    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: utils.min_clamp_prob(
-        ((renyi.cosine_similarity(u, v) + 1) / 2) ** degree))
+    return lambda x, y: gait.generic_kernel(x, y, lambda u, v: utils.min_clamp_prob(
+        ((gait.cosine_similarity(u, v) + 1) / 2) ** degree))
 
 
 def gaussian_kernel(sigma):
-    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.rbf_kernel(u, v, sigmas=[sigma], log=True))
+    return lambda x, y: gait.generic_kernel(x, y, lambda u, v: gait.rbf_kernel(u, v, sigmas=[sigma], log=True))
 
 
 class SimilarityCostModel(BaseAdversarial):
@@ -54,10 +54,10 @@ class SimilarityCostModel(BaseAdversarial):
         if self.flags.kernel == 'gaussian':
             sigma = self.sigma_decay.get_y(self.get_train_steps())
             self.kernel = gaussian_kernel(sigma)
-            D = lambda x, y: renyi.breg_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
+            D = lambda x, y: gait.breg_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
                                                                   symmetric=self.flags.symmetric)
         else:
-            D = lambda x, y: renyi.breg_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel,
+            D = lambda x, y: gait.breg_mixture_divergence(self.uniform, x, self.uniform, y, self.kernel,
                                                            symmetric=self.flags.symmetric)
 
         if not self.flags.unbiased:

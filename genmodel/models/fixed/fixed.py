@@ -9,15 +9,15 @@ from pylego import ops
 from ..basefixed import BaseFixed
 
 sys.path.append('..')
-import renyi
+import gait
 
 
 def gaussian_kernel(sigma):
-    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.rbf_kernel(u, v, sigmas=[sigma], log=True))
+    return lambda x, y: gait.generic_kernel(x, y, lambda u, v: gait.rbf_kernel(u, v, sigmas=[sigma], log=True))
 
 
 def poly_kernel(degree):
-    return lambda x, y: renyi.generic_kernel(x, y, lambda u, v: renyi.poly_kernel(u, v, degree=degree, log=True))
+    return lambda x, y: gait.generic_kernel(x, y, lambda u, v: gait.poly_kernel(u, v, degree=degree, log=True))
 
 
 class Decoder(nn.Module):
@@ -94,8 +94,8 @@ class FixedModel(BaseFixed):
         if self.flags.kernel == 'gaussian':
             sigma = self.sigma_decay.get_y(self.get_train_steps())
             self.kernel = gaussian_kernel(sigma)
-        D = lambda x, y: renyi.breg_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
-                                                              symmetric=self.flags.symmetric)
+        D = lambda x, y: gait.breg_mixture_divergence_stable(self.uniform, x, self.uniform, y, self.kernel,
+                                                             symmetric=self.flags.symmetric)
         if not self.flags.unbiased:
             return D(x, x_gen)
         else:
