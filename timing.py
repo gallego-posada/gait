@@ -6,7 +6,7 @@ torch.set_default_tensor_type(torch.DoubleTensor)
 
 import gait
 
-bs, img_size = 100, 128
+bs, img_size = 100, 128  # TODO loop with batch sizes and produce a plot
 print(f'Considering a batch of {bs} images of size {img_size}x{img_size}.')
 
 [Ygrid, Xgrid] = np.meshgrid(np.linspace(0, 1, img_size), np.linspace(0, 1, img_size))
