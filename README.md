@@ -1,5 +1,5 @@
 # gait  
-Code for the paper [*GAIT: A Geometric Approach to Information Theory*](https://arxiv.org/abs/1906.08325)
+Code for the paper [*GAIT: A Geometric Approach to Information Theory*](https://arxiv.org/abs/1906.08325) by Jose Gallego-Posada, Ankit Vani, Max Schwarzer and Simon Lacoste-Julien at AISTATS, 2020.
 
 <img width="826" alt="aistats_latex_tweet" src="https://user-images.githubusercontent.com/8620503/111079867-5771b380-84d2-11eb-83b2-22c5556b5276.png">
 
