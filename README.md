@@ -8,7 +8,7 @@ For questions and comments, feel free to contact [Jose Gallego-Posada](mailto:ga
 
 ## Citation
 ```
-[1] Gallego-Posada, J., Vani, A., Schwarzer, M. and Lacoste-Julien, S. (2020). GAIT: A Geometric Approach to Information Theory. In AISTATS, 2020.
+[1] Gallego-Posada, J., Vani, A., Schwarzer, M. and Lacoste-Julien, S. GAIT: A Geometric Approach to Information Theory. In AISTATS, 2020.
 ```
 
 BibTeX format:
