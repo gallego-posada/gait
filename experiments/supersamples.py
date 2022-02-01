@@ -115,7 +115,7 @@ if __name__=="__main__":
     # n = Number of approximating mixture components
     # m = Size of fresh batch samples
     # d = Dimension of the data
-    n, m, d = 200, 200, 2
+    n, m, d = 50, 200, 2
 
     # Uniform mixture components used for empirical minibatches below
     tp = torch.Tensor(np.ones((1, m))/m)
@@ -129,7 +129,7 @@ if __name__=="__main__":
     centroids = torch.nn.Parameter(torch.randn(n, d))
     optim_list = [torch.optim.Adam([centroids], lr=0.01, amsgrad=True)] 
 
-    for iter_num in range(100):
+    for iter_num in range(500):
 
         [o.zero_grad() for o in optim_list]
 
