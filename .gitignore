@@ -9,6 +9,7 @@ __pycache__/
 *.so
 
 #data/
+results/
 matlab_comparison/
 
 # Distribution / packaging

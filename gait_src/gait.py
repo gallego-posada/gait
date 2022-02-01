@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch.nn import functional as F
-import utils
+from . import utils
 
 
 def gait_sim_entropy(K, p, alpha=1):
@@ -89,7 +89,7 @@ def sim_cross_entropy(K, p, q, alpha=1, normalize=False):
     return res.transpose(0, 1)
 
 
-def breg_sim_divergence(K, p, q, symmetric=False):
+def bregman_sim_divergence(K, p, q, symmetric=False):
     # NOTE: if you make changes in this function, do them in *_stable function under this as well.
     """
     Compute similarity sensitive Bregman divergence of between a pair of (batches of)
@@ -136,7 +136,7 @@ def breg_sim_divergence(K, p, q, symmetric=False):
         return 1 + t1 - t2
 
 
-def breg_sim_divergence_stable(log_K, p, q, symmetric=False):
+def bregman_sim_divergence_stable(log_K, p, q, symmetric=False):
     """
     Compute similarity sensitive Bregman divergence of between a pair of (batches of)
     distribution(s) p and q over an alphabet of n elements.    Inputs:
@@ -206,7 +206,7 @@ def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=False):
     f_q = torch.cat([torch.zeros_like(p), q], -1)
     f_K = torch.cat([torch.cat([Kyy, Kyx], 1), torch.cat([Kyx.t(), Kxx], 1)], 0)
 
-    return breg_sim_divergence(f_K, f_p, f_q, symmetric=symmetric)
+    return bregman_sim_divergence(f_K, f_p, f_q, symmetric=symmetric)
 
 
 def breg_mixture_divergence_stable(p, Y, q, X, log_kernel, symmetric=False):
@@ -232,7 +232,7 @@ def breg_mixture_divergence_stable(p, Y, q, X, log_kernel, symmetric=False):
     f_q = torch.cat([torch.zeros_like(p), q], -1)
     f_log_K = torch.cat([torch.cat([log_Kyy, log_Kyx], 1), torch.cat([log_Kyx.t(), log_Kxx], 1)], 0)
 
-    return breg_sim_divergence_stable(f_log_K, f_p, f_q, symmetric=symmetric)
+    return bregman_sim_divergence_stable(f_log_K, f_p, f_q, symmetric=symmetric)
 
 
 def test_mixture_divergence(p, Y, q, X, log_kernel, symmetric=False, use_avg=False):
@@ -275,40 +275,3 @@ def test_mixture_divergence(p, Y, q, X, log_kernel, symmetric=False, use_avg=Fal
         div = div + q @ (T * (rat2[0] - rat2[1])).sum(dim=1, keepdim=True)[p.size(1):]
 
     return div
-
-def cosine_similarity(X, Y, log=False):
-    ret = utils.batch_cosine_similarity(X, Y)
-    if log:
-        return torch.log(ret)
-    else:
-        return ret
-
-def poly_kernel(X, Y, degree=2, c=1, p=2, log=False):
-    pdist = utils.batch_pdist(X, Y, p)
-    if log:
-        return -torch.log(1 + c * pdist) * degree
-    else:
-        return utils.min_clamp_prob(1 / (1 + c * pdist)**degree)
-    
-def rbf_kernel(X, Y, sigmas=[1.], p=2, degree=2, log=False):
-    pdist = utils.batch_pdist(X, Y, p)
-    res = torch.zeros_like(pdist)
-    if log:
-        log_res = torch.zeros_like(pdist)
-    for sigma in sigmas:
-        logits = - (pdist/sigma)**degree
-        res += torch.exp(logits)
-        if log:
-            log_res += logits
-    ret = res / len(sigmas)
-    if log:
-        return log_res / len(sigmas)  # incorrect for log if len(sigmas) > 1
-    else:
-        return utils.min_clamp_prob(ret)
-
-def generic_kernel(X, Y, kernel_fn, full=False, log=False):
-    if full:
-        W = torch.cat((X, Y))
-        return kernel_fn(W, W)
-    else:
-        return kernel_fn(X, Y)
