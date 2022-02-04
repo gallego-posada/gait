@@ -124,6 +124,12 @@ def bregman_sim_divergence(K, p, q, symmetric=False):
     else:
         sum_dims = -1
 
+    
+    # import pdb; pdb.set_trace()
+    # import matplotlib.pyplot as plt
+    # plt.matshow(K.data.numpy())
+    # plt.show()
+    
     if symmetric:
         t1 = (p * (torch.log(rat1[0]) - torch.log(rat1[1]))).sum(sum_dims)
         t2 = (r * (rat1[0] / rat1[1])).sum(sum_dims)
@@ -170,6 +176,7 @@ def bregman_sim_divergence_stable(log_K, p, q, symmetric=False):
     else:
         sum_dims = -1
 
+    
     if symmetric:
         t1 = (p * (rat1[0] - rat1[1])).sum(sum_dims)
         t2 = (r * torch.exp(rat1[0] - rat1[1])).sum(sum_dims)
@@ -182,7 +189,7 @@ def bregman_sim_divergence_stable(log_K, p, q, symmetric=False):
         return 1 + t1 - t2
 
 
-def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=False):
+def bregman_mixture_divergence(p, Y, q, X, kernel, symmetric=False):
     # NOTE: if you make changes in this function, do them in *_stable function under this as well.
     """
     Compute similarity sensitive GAIT divergence of between a pair of empirical distributions
@@ -209,7 +216,7 @@ def breg_mixture_divergence(p, Y, q, X, kernel, symmetric=False):
     return bregman_sim_divergence(f_K, f_p, f_q, symmetric=symmetric)
 
 
-def breg_mixture_divergence_stable(p, Y, q, X, log_kernel, symmetric=False):
+def bregman_mixture_divergence_stable(p, Y, q, X, log_kernel, symmetric=False):
     """
     Compute similarity sensitive GAIT divergence of between a pair of empirical distributions
     p and q with supports Y and X, respectively

@@ -1,19 +1,14 @@
 import argparse
 import os
+import sys
+sys.path.append(".")
 from functools import partial
 
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib import rcParams
-rcParams['font.family'] = 'serif'
-rcParams['font.sans-serif'] = ['Lucida Grande']
-rcParams['font.size'] = 12
+from plot_style import *
 
 import torch
 import numpy as np
 
-import sys
-sys.path.append(".")
 
 import gait_src as gait
 import gait_src.helpers.mog_data as mog_data
@@ -136,7 +131,7 @@ if __name__=="__main__":
         # Sample fresh minibatch of real data
         Y = torch.Tensor(mog_data.sample_mix(rvs, p, m))
 
-        loss = gait.breg_mixture_divergence(tp, Y, q, centroids, kernel)
+        loss = gait.bregman_mixture_divergence(tp, Y, q, centroids, kernel)
 
         if iter_num % 10 == 0:
             print("%d - %.4f" % (iter_num, loss.item()))

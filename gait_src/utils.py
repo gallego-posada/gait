@@ -9,6 +9,16 @@ for dtype in [torch.float16, torch.float32, torch.float64]:
     EPS[dtype] = torch.finfo(dtype).eps * 2
 
 
+def uniform_distribution(support_size:int, use_torch=False, device=None):
+    
+    unif_distro = np.array(support_size * [1./support_size])[None, :] 
+    
+    if use_torch:
+        return torch.tensor(unif_distro, device=device)
+    else:
+        return unif_distro
+    
+
 def batch_pdist(X, Y, p=2):
     return torch.norm(X[..., None, :] - Y[..., None, :, :], p=p, dim=-1)
 
